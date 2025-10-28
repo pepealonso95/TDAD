@@ -17,7 +17,7 @@ You are assisting with a Master's thesis on **Test-Driven AI Development (TDAD)*
 Log when you:
 - Modify code in `claudecode_n_codex_swebench/`
 - Change prompts in `prompts/`
-- Run benchmarks or evaluations
+- Finish running benchmarks or evaluations
 - Add plugins or configurations
 - Modify experiment parameters
 - Make any change that could affect results
