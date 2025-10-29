@@ -56,6 +56,7 @@ temp/
 
 # SWE-bench specific
 claudecode_n_codex_swebench/predictions/*.jsonl
+claudecode_n_codex_swebench/predictions/*.json
 claudecode_n_codex_swebench/evaluation_results/
 claudecode_n_codex_swebench/logs/*.log
 claudecode_n_codex_swebench/results/
@@ -63,6 +64,7 @@ claudecode_n_codex_swebench/results/
 # Keep baseline results for documentation
 !claudecode_n_codex_swebench/predictions/predictions_20251027_195038.jsonl
 !claudecode_n_codex_swebench/predictions/predictions_20251027_205019.jsonl
+!claudecode_n_codex_swebench/predictions/predictions_20251028_*.jsonl
 
 # Large dataset caches
 .cache/

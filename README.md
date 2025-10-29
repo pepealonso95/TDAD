@@ -56,10 +56,27 @@ AI agents that:
 
 ## Repository Structure
 
+This repository uses a **single-repo approach** where all thesis components are tracked together:
+- Thesis documentation (this file, EXPERIMENTS.md)
+- Modified evaluation toolkit (claudecode_n_codex_swebench/)
+- Experimental configurations and results
+- Analysis scripts and notebooks
+
+**Why single repo?** This approach is ideal for thesis work because:
+- All modifications to the toolkit are versioned alongside experiments
+- Easy for thesis advisors to review complete project
+- Simple backup and recovery (one repository)
+- Clear history of how toolkit evolved with experiments
+
 ```
 TDAD/
-├── README.md                           # This file
-├── claudecode_n_codex_swebench/       # Main evaluation toolkit
+├── .git/                               # Single git repository
+├── README.md                           # This file - thesis overview
+├── EXPERIMENTS.md                      # Detailed experiment log
+├── .claude/
+│   └── CLAUDE.md                       # Experiment logging discipline
+│
+├── claudecode_n_codex_swebench/       # Modified evaluation toolkit
 │   ├── README_THESIS.md               # Detailed toolkit documentation
 │   ├── code_swe_agent.py              # Agent implementation
 │   ├── utils/                         # Modified utilities
@@ -68,16 +85,56 @@ TDAD/
 │   │   └── patch_extractor.py         # Patch extraction (ENHANCED)
 │   ├── prompts/                       # Prompt templates
 │   │   └── swe_bench_prompt.txt       # Default (baseline)
-│   ├── predictions/                   # Generated patches
-│   ├── evaluation_results/            # Test results
+│   ├── predictions/                   # Generated patches (.gitignored)
+│   ├── evaluation_results/            # Test results (.gitignored)
 │   └── benchmark_scores.log           # Historical data
+│
 ├── experiments/                        # Experiment configurations (TBD)
 │   ├── baseline/
 │   ├── tdd_prompts/
 │   ├── vector_rag/
 │   └── graph_rag/
+│
 └── analysis/                          # Data analysis notebooks (TBD)
 ```
+
+### Toolkit Attribution
+
+The `claudecode_n_codex_swebench/` directory contains a modified version of an external SWE-bench evaluation toolkit.
+
+**Original Source**: Based on jimmc414's claudecode_swebench implementation
+**License**: MIT (maintained)
+
+**Modifications Made for This Thesis**:
+
+1. **Model Registry Updates** (`utils/model_registry.py`)
+   - Updated model IDs for Claude Code 2.0.28 compatibility
+   - Fixed infinite recursion bug in model name resolution
+   - Added support for Haiku 4.5 model
+   - Changed from full model IDs to Claude CLI aliases
+
+2. **Enhanced Debug Logging** (`utils/claude_interface.py`, `utils/patch_extractor.py`)
+   - Added command execution logging for debugging
+   - Added git status output before patch extraction
+   - Added prompt/response preview logging
+   - Essential for understanding agent behavior in experiments
+
+3. **Robust Error Handling** (`utils/claude_interface.py`)
+   - Added try-catch around directory restoration
+   - Handles Claude Code's directory cleanup gracefully
+   - Prevents cascading failures during batch processing
+
+4. **Dataset Support**
+   - Extended to support SWE-bench Verified (500 human-validated instances)
+   - Maintained backward compatibility with SWE-bench Lite
+
+**What's NOT Modified**:
+- Core evaluation logic (unchanged)
+- Docker integration (unchanged)
+- Prompt templates (baseline unmodified, will create variants for experiments)
+- File extraction and validation (core logic unchanged)
+
+All modifications are tracked in this repository's git history and documented in EXPERIMENTS.md.
 
 ## Baseline Results
 
