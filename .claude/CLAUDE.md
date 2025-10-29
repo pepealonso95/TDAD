@@ -34,6 +34,7 @@ Log when you:
    - How (method)
    - Results (if available)
    - Analysis and next steps
+4. **Make new logs at end of file for each new experiment instead of editing old ones.**
 
 ### Example Entry Format
 
