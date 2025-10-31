@@ -93,3 +93,9 @@ pip-delete-this-directory.txt
 pip-log.txt
 pip-wheel-metadata/
 venv
+
+# Dataset cache (large files)
+data/
+*.json.gz
+*_tests.json
+princeton-nlp_*.json

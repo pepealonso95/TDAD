@@ -184,10 +184,10 @@ cd /Users/rafaelalonso/Development/Master/Tesis/claudecode_n_codex_swebench
 
 # Baseline (EXP-001)
 conda activate py313
-python code_swe_agent.py --dataset_name princeton-nlp/SWE-bench_Lite --limit 10 --backend claude
+python code_swe_agent.py --dataset_name princeton-nlp/SWE-bench_Verified --limit 10 --backend claude
 
 # With custom prompt (future experiments)
-python code_swe_agent.py --dataset_name princeton-nlp/SWE-bench_Lite --limit 10 --backend claude --prompt-template prompts/swe_bench_tdd.txt
+python code_swe_agent.py --dataset_name princeton-nlp/SWE-bench_Verified --limit 10 --backend claude --prompt-template prompts/swe_bench_tdd.txt
 ```
 
 ### Evaluate Results

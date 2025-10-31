@@ -1,0 +1,119 @@
+You are being evaluated on SWE-bench, a benchmark for real-world software engineering tasks. You need to fix a GitHub issue in a repository using Test-Driven Development (TDD) methodology.
+
+Repository: {repo_name}
+Base Commit: {base_commit}
+Instance ID: {instance_id}
+
+ISSUE DESCRIPTION:
+{issue_description}
+
+YOUR TASK:
+You must follow a strict Test-Driven Development approach to fix this issue. This means writing tests BEFORE implementation and running tests at every step to prevent regressions.
+
+MANDATORY TDD WORKFLOW:
+
+1. UNDERSTAND THE ISSUE:
+   - Read the issue description carefully
+   - Identify what functionality is broken or what feature needs to be added
+   - Note any specific test cases or examples mentioned in the issue
+   - Determine what behavior should change and what should stay the same
+
+2. EXPLORE THE CODEBASE:
+   - Use grep to search for relevant keywords from the issue
+   - Use find to locate files mentioned in the issue
+   - Read the relevant source files to understand the current implementation
+   - CRITICALLY: Locate and examine existing test files to understand:
+     * Current test coverage
+     * Testing patterns and conventions used in this repository
+     * Which tests might be affected by your changes
+
+3. ESTABLISH BASELINE (PREVENT REGRESSIONS):
+   - Identify the test command for this repository (pytest, python -m unittest, etc.)
+   - Run the existing test suite BEFORE making any changes
+   - Note which tests currently pass (these MUST NOT break)
+   - Document any currently failing tests (to avoid false positives)
+   - This baseline is CRITICAL for measuring regressions
+
+4. WRITE TESTS FIRST (RED PHASE):
+   - Create or modify test files BEFORE touching implementation code
+   - Write specific test cases that:
+     * Verify the bug is fixed (for bug fixes)
+     * Validate the new feature works (for new features)
+     * Cover edge cases mentioned in the issue
+     * Use the repository's testing conventions
+   - Run these NEW tests to verify they FAIL initially
+   - A failing test proves you're testing the right thing
+   - DO NOT proceed to implementation until tests are written
+
+5. IMPLEMENT THE FIX (GREEN PHASE):
+   - Now and only now, use the Edit tool to modify implementation files
+   - Make minimal, targeted changes to make your NEW tests pass
+   - Preserve existing functionality
+   - Follow the coding style of the repository
+   - Focus solely on making tests pass, not on "perfect" code yet
+
+6. VERIFY TESTS PASS (GREEN CONFIRMATION):
+   - Run your NEW tests to confirm they now pass
+   - If they still fail, debug and iterate until they pass
+   - Do not proceed until your new tests are green
+
+7. RUN FULL TEST SUITE (REGRESSION CHECK):
+   - **CRITICAL**: Run the ENTIRE existing test suite
+   - Compare results with your baseline from Step 3
+   - Identify any tests that changed from PASS to FAIL (REGRESSIONS)
+   - If you introduced regressions:
+     * Analyze which tests broke and why
+     * Modify your implementation to fix the regression
+     * Re-run full test suite
+     * Repeat until NO regressions exist
+   - You MUST NOT complete until all previously passing tests still pass
+
+8. REFACTOR IF NEEDED (OPTIONAL):
+   - Only if tests are all green, consider code quality improvements
+   - After any refactoring, re-run full test suite
+   - Ensure no regressions were introduced
+
+TDD PRINCIPLES TO FOLLOW:
+- **Test First, Always**: Never write implementation code before writing tests
+- **Red → Green → Refactor**: Follow the TDD cycle strictly
+- **No Regressions**: Previously passing tests MUST continue to pass
+- **Minimal Changes**: Write just enough code to make tests pass
+- **Frequent Testing**: Run tests after every change
+- **Test Quality**: Tests should be clear, specific, and cover edge cases
+
+REGRESSION PREVENTION REQUIREMENTS:
+- You MUST run the full existing test suite before making changes
+- You MUST run the full existing test suite after your changes
+- You MUST fix any new test failures before completing
+- Breaking existing tests is considered FAILURE even if your new tests pass
+- Document which tests you ran and their pass/fail status
+
+IMPORTANT GUIDELINES:
+- Focus on fixing ONLY the issue described - do not make unrelated improvements
+- Write tests that prove the issue exists, then fix it
+- Make the minimal changes necessary to make all tests pass
+- Preserve backward compatibility unless the issue specifically requires breaking changes
+- If the issue mentions specific test cases, ensure your tests validate them
+- Use the Edit or Write tools to make actual file changes - do not just describe changes
+- Do not add comments unless they are essential for understanding the fix
+- You MUST edit the actual files to fix the issue, not just analyze or explain the problem
+- Include test execution output in your work to prove tests pass
+
+ANTI-PATTERNS TO AVOID:
+- ❌ Writing implementation before tests
+- ❌ Skipping the baseline test run
+- ❌ Not running full test suite before completion
+- ❌ Ignoring test failures in existing tests
+- ❌ Assuming tests pass without actually running them
+- ❌ Making large changes without incremental testing
+
+SUCCESS CRITERIA:
+✅ New tests written that validate the fix
+✅ New tests initially failed (proving they test the issue)
+✅ New tests now pass (proving the fix works)
+✅ All existing passing tests still pass (no regressions)
+✅ Test execution output provided as evidence
+
+The repository is located at: {base_path}
+
+Remember: The goal is not just to fix the issue, but to fix it in a way that provably doesn't break existing functionality. Tests are your proof.
