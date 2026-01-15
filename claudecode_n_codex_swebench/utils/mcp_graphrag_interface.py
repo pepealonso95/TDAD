@@ -53,15 +53,18 @@ class GraphRAGMCPInterface:
     def _start_server(self):
         """Start the MCP server"""
         try:
-            # Path to server script
-            server_script = Path(__file__).parent.parent / "mcp_server" / "server.py"
+            # Get path to the package directory (parent of mcp_server)
+            package_dir = Path(__file__).parent.parent
 
-            if not server_script.exists():
-                raise RuntimeError(f"Server script not found: {server_script}")
+            # Verify the mcp_server package exists
+            mcp_server_dir = package_dir / "mcp_server"
+            if not mcp_server_dir.exists():
+                raise RuntimeError(f"MCP server package not found: {mcp_server_dir}")
 
-            # Start server process
+            # Start server as a module (to support relative imports)
             self.server_process = subprocess.Popen(
-                ["python", str(server_script)],
+                ["python", "-m", "mcp_server.server"],
+                cwd=str(package_dir),  # Run from package directory
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True
@@ -403,6 +406,117 @@ class GraphRAGMCPInterface:
             "skipped": test_result.get("skipped", 0),
             "regressions": test_result.get("regressions", 0),
             "impact_result": impact_result,
+            "test_result": test_result
+        }
+
+    def run_impacted_tests_iteratively(
+        self,
+        repo_path: str,
+        changed_files: List[str],
+        impact_threshold: float = 0.3,
+        max_tests: int = 50
+    ) -> Dict:
+        """
+        Run impacted tests and return structured results for iteration.
+
+        This method is designed to support the iterative test-fix loop:
+        1. Find impacted tests based on changed files
+        2. Run those tests
+        3. Return detailed failure information for the agent to fix
+        4. Agent fixes failures
+        5. Repeat
+
+        Args:
+            repo_path: Path to repository
+            changed_files: List of changed file paths
+            impact_threshold: Minimum impact score (0-1)
+            max_tests: Maximum number of tests to run
+
+        Returns:
+            Dict with:
+            - success: True if all tests pass
+            - total_impacted: Number of tests identified as impacted
+            - tests_run: Number of tests actually run
+            - passed: Number of tests that passed
+            - failed: Number of tests that failed
+            - failed_tests: List of failed test details for agent
+            - stdout: Test output
+            - stderr: Test errors
+        """
+        logger.info(f"Running iterative test loop for: {repo_path}")
+
+        # Get impacted tests
+        impact_result = self.get_impacted_tests(repo_path, changed_files, impact_threshold)
+
+        if not impact_result.get("success"):
+            return {
+                "success": False,
+                "error": "Failed to get impacted tests",
+                "total_impacted": 0,
+                "tests_run": 0,
+                "passed": 0,
+                "failed": 0,
+                "failed_tests": [],
+                "stdout": "",
+                "stderr": impact_result.get("error", "")
+            }
+
+        impacted_tests = impact_result.get("tests", [])
+
+        if not impacted_tests:
+            return {
+                "success": True,
+                "message": "No impacted tests found",
+                "total_impacted": 0,
+                "tests_run": 0,
+                "passed": 0,
+                "failed": 0,
+                "failed_tests": [],
+                "stdout": "",
+                "stderr": ""
+            }
+
+        # Sort by impact score and limit
+        sorted_tests = sorted(impacted_tests, key=lambda t: t.get("impact_score", 0), reverse=True)
+        tests_to_run = sorted_tests[:max_tests]
+        test_identifiers = [f"{t['test_file']}::{t['test_name']}" for t in tests_to_run]
+
+        logger.info(f"Running {len(test_identifiers)} impacted tests (of {len(impacted_tests)} total)")
+
+        # Run tests
+        test_result = self.run_tests(repo_path, test_identifiers)
+
+        # Extract failure details for agent
+        failed_tests = []
+        for result in test_result.get("test_results", []):
+            if result.get("status") == "failed":
+                # Find impact score from impacted_tests
+                impact_score = 0
+                for t in tests_to_run:
+                    if t.get("test_name") == result.get("name"):
+                        impact_score = t.get("impact_score", 0)
+                        break
+
+                failed_tests.append({
+                    "test_name": result.get("name"),
+                    "test_file": result.get("file"),
+                    "full_name": result.get("full_name"),
+                    "error": result.get("error", ""),
+                    "impact_score": impact_score
+                })
+
+        all_passed = test_result.get("failed", 0) == 0
+
+        return {
+            "success": all_passed,
+            "total_impacted": len(impacted_tests),
+            "tests_run": len(test_identifiers),
+            "passed": test_result.get("passed", 0),
+            "failed": test_result.get("failed", 0),
+            "skipped": test_result.get("skipped", 0),
+            "failed_tests": failed_tests,
+            "stdout": test_result.get("stdout", ""),
+            "stderr": test_result.get("stderr", ""),
             "test_result": test_result
         }
 

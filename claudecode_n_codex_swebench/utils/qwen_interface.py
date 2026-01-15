@@ -86,8 +86,8 @@ class QwenCodeInterface:
         """Parse response for file changes and apply them directly."""
         applied = False
 
-        # Pattern 1: <<<FILE: path>>> format (END FILE marker optional)
-        file_pattern1 = r'<<<FILE:\s*([^\s>]+\.py)>>>\s*```(?:python)?\s*\n(.*?)```'
+        # Pattern 1: <<<FILE: path>>> followed by code block
+        file_pattern1 = r'<<<FILE:\s*([^\s>]+\.py)>>>\s*\n```(?:python)?\n(.*?)```'
         matches = re.findall(file_pattern1, response, re.DOTALL)
 
         # Pattern 2: FILE: path followed by code block

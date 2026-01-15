@@ -11,7 +11,7 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -74,7 +74,7 @@ class GetImpactedTestsRequest(BaseModel):
 class GetImpactedTestsResponse(BaseModel):
     """Response with impacted tests"""
     success: bool
-    tests: List[Dict[str, any]] = Field(default_factory=list, description="List of impacted tests with scores")
+    tests: List[Dict[str, Any]] = Field(default_factory=list, description="List of impacted tests with scores")
     total_tests: int
     message: Optional[str] = None
     error: Optional[str] = None
@@ -95,7 +95,7 @@ class RunTestsResponse(BaseModel):
     skipped: int
     regressions: int = Field(0, description="Number of previously passing tests that failed")
     duration_seconds: float
-    test_results: List[Dict[str, any]] = Field(default_factory=list)
+    test_results: List[Dict[str, Any]] = Field(default_factory=list)
     error: Optional[str] = None
 
 
@@ -130,14 +130,36 @@ async def lifespan(app: FastAPI):
     logger.info(f"Neo4j mode: {'embedded' if config.neo4j.use_embedded else 'standalone'}")
     logger.info(f"Embeddings: {config.embeddings.provider}/{config.embeddings.model}")
 
-    # TODO: Initialize Neo4j connection
-    # TODO: Verify database schema
+    # Initialize Neo4j connection
+    try:
+        from .graph_db import get_db, close_db
+        db = get_db()
+
+        # Verify connection by running a simple query
+        with db.driver.session(database=config.neo4j.database) as session:
+            result = session.run("RETURN 1 as num")
+            _ = result.single()
+
+        logger.info("Neo4j connection verified")
+
+        # Ensure schema exists
+        db.create_schema()
+        logger.info("Neo4j schema verified")
+
+    except Exception as e:
+        logger.error(f"Failed to initialize Neo4j: {e}")
+        logger.warning("Server starting without Neo4j - some features will not work")
 
     yield
 
     # Shutdown
     logger.info("Shutting down GraphRAG MCP Server...")
-    # TODO: Close Neo4j connection
+    try:
+        from .graph_db import close_db
+        close_db()
+        logger.info("Neo4j connection closed")
+    except Exception as e:
+        logger.warning(f"Error closing Neo4j: {e}")
 
 
 # ============================================================================
@@ -450,7 +472,7 @@ if __name__ == "__main__":
     logger.info(f"Starting server on {config.server.host}:{config.server.port}")
 
     uvicorn.run(
-        "server:app",
+        "mcp_server.server:app",
         host=config.server.host,
         port=config.server.port,
         reload=config.server.reload,

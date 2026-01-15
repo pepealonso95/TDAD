@@ -301,6 +301,10 @@ class GraphBuilder:
                     )
                     nodes_created += 1
 
+                    # Create CONTAINS relationship from File to Test
+                    self.db.create_contains_relationship(file_info.relative_path, test_id, "Test")
+                    relationships_created += 1
+
             # Create class nodes using RELATIVE paths
             for cls in file_info.classes:
                 class_id = f"{file_info.relative_path}::{cls.name}:{cls.start_line}"
@@ -469,15 +473,27 @@ class GraphBuilder:
 
         # Build lookup maps
         function_map = {}  # func_name -> func_id
+        file_map = {}  # module_name -> relative_path (for imports)
+
         for file_info in file_infos:
+            # Build function map using relative paths (consistent with node creation)
             for func in file_info.functions:
-                func_id = f"{file_info.path}::{func.name}:{func.start_line}"
+                func_id = f"{file_info.relative_path}::{func.name}:{func.start_line}"
                 function_map[func.name] = func_id
+
+            # Build file map for imports
+            # Convert path like "src/utils/helper.py" to module name "src.utils.helper"
+            module_name = file_info.relative_path.replace('/', '.').replace('.py', '')
+            file_map[module_name] = file_info.relative_path
+            # Also map short names for common import patterns (e.g., "helper")
+            short_name = Path(file_info.relative_path).stem
+            if short_name not in file_map:
+                file_map[short_name] = file_info.relative_path
 
         # Create CALLS relationships
         for file_info in file_infos:
             for func in file_info.functions:
-                func_id = f"{file_info.path}::{func.name}:{func.start_line}"
+                func_id = f"{file_info.relative_path}::{func.name}:{func.start_line}"
 
                 for called_func_name in func.calls:
                     if called_func_name in function_map:
@@ -489,9 +505,30 @@ class GraphBuilder:
                             except Exception as e:
                                 logger.debug(f"Could not create CALLS relationship: {e}")
 
-        # TODO: Create IMPORTS relationships
-        # TODO: Create INHERITS relationships
-        # TODO: Create TESTS relationships (requires test analysis)
+        # Create IMPORTS relationships
+        for file_info in file_infos:
+            for imported_module in file_info.imports:
+                # Try to resolve import to a file in the repo
+                target_path = file_map.get(imported_module)
+
+                if not target_path:
+                    # Try last components of module path (from x.y.z import w -> try "z", "y", etc.)
+                    parts = imported_module.split('.')
+                    for part in reversed(parts):
+                        if part in file_map:
+                            target_path = file_map[part]
+                            break
+
+                if target_path and target_path != file_info.relative_path:
+                    try:
+                        self.db.create_imports_relationship(file_info.relative_path, target_path)
+                        relationships_created += 1
+                        logger.debug(f"Import: {file_info.relative_path} -> {target_path}")
+                    except Exception as e:
+                        logger.debug(f"Could not create IMPORTS relationship: {e}")
+
+        # Note: INHERITS relationships would require class hierarchy analysis
+        # Note: TESTS relationships are created by TestLinker after graph building
 
         return relationships_created
 

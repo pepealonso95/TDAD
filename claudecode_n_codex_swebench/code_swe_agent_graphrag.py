@@ -401,9 +401,65 @@ class GraphRAGCodeSWEAgent:
                     if impact_result.get("success"):
                         graphrag_metadata["impacted_tests"] = impact_result.get("tests", [])[:self.max_impacted_tests]
 
-                        # Calculate efficiency ratio (impacted vs all tests)
-                        # This would require knowing total test count, which we can estimate
-                        # For now, we'll leave it as None
+                        # Step 3.5: Iterative test-fix loop
+                        max_fix_iterations = 3
+                        iteration = 0
+                        graphrag_metadata["iterations"] = 0
+                        graphrag_metadata["final_test_result"] = None
+
+                        while iteration < max_fix_iterations and changed_files:
+                            iteration += 1
+                            print(f"\n--- Iteration {iteration}: Running impacted tests ---")
+
+                            test_result = self.mcp.run_impacted_tests_iteratively(
+                                repo_path=repo_path,
+                                changed_files=changed_files,
+                                impact_threshold=self.impact_threshold,
+                                max_tests=self.max_impacted_tests
+                            )
+
+                            graphrag_metadata["iterations"] = iteration
+                            graphrag_metadata["final_test_result"] = {
+                                "success": test_result.get("success"),
+                                "passed": test_result.get("passed", 0),
+                                "failed": test_result.get("failed", 0),
+                                "tests_run": test_result.get("tests_run", 0)
+                            }
+
+                            if test_result.get("success"):
+                                print(f"All {test_result.get('tests_run', 0)} impacted tests pass!")
+                                break
+
+                            failed_tests = test_result.get("failed_tests", [])
+                            if not failed_tests:
+                                print("Tests failed but no failure details available")
+                                break
+
+                            print(f"Failed tests: {len(failed_tests)}")
+                            for ft in failed_tests[:5]:  # Show top 5
+                                print(f"  - {ft.get('test_name')} (impact: {ft.get('impact_score', 0):.2f})")
+
+                            if iteration >= max_fix_iterations:
+                                print(f"Max iterations ({max_fix_iterations}) reached, some tests still failing")
+                                break
+
+                            # Format failure info for agent to fix
+                            failure_prompt = self._format_test_failures_for_agent(
+                                failed_tests, test_result, instance
+                            )
+
+                            print(f"\nAsking agent to fix {len(failed_tests)} failing tests...")
+
+                            # Run agent again with failure context
+                            fix_result = self.interface.execute_code_cli(failure_prompt, repo_path, self.model)
+
+                            if not fix_result["success"]:
+                                print("Agent failed to fix regressions")
+                                break
+
+                            # Get new changed files for next iteration
+                            changed_files = self.get_changed_files(repo_path)
+                            graphrag_metadata["changed_files"] = changed_files
                 else:
                     print("No Python files changed")
 
@@ -460,6 +516,64 @@ class GraphRAGCodeSWEAgent:
                 "extracted_patch": patch,
                 "graphrag_metadata": graphrag_metadata
             }, f, indent=2)
+
+    def _format_test_failures_for_agent(
+        self,
+        failed_tests: List[Dict],
+        test_result: Dict,
+        instance: Dict
+    ) -> str:
+        """
+        Format test failures into a prompt for the agent to fix regressions.
+
+        Args:
+            failed_tests: List of failed test details
+            test_result: Full test result dict
+            instance: Original SWE-bench instance
+
+        Returns:
+            Formatted prompt string for the agent
+        """
+        prompt = f"""REGRESSION DETECTED in {instance.get('repo', 'repository')}
+
+The following tests are failing after your changes. You MUST fix these regressions
+to complete the task successfully.
+
+ORIGINAL ISSUE:
+{instance.get('problem_statement', 'See original issue description.')}
+
+FAILING TESTS:
+"""
+        for ft in failed_tests:
+            impact_level = "HIGH - directly tests changed code" if ft.get('impact_score', 0) >= 0.8 else \
+                          "MEDIUM - transitively affected" if ft.get('impact_score', 0) >= 0.5 else \
+                          "LOW - indirectly related"
+            prompt += f"""
+Test: {ft.get('full_name', ft.get('test_name', 'Unknown'))}
+File: {ft.get('test_file', 'Unknown')}
+Impact: {ft.get('impact_score', 0):.2f} ({impact_level})
+Error: {ft.get('error', 'No error message available')[:500]}
+"""
+
+        # Add truncated test output
+        stdout = test_result.get('stdout', '')[:2000]
+        if stdout:
+            prompt += f"""
+TEST OUTPUT (truncated):
+{stdout}
+"""
+
+        prompt += """
+INSTRUCTIONS:
+1. Analyze why each test is failing
+2. Fix the regression WITHOUT breaking your original fix for the issue
+3. The goal is to make all tests pass while still solving the original problem
+4. Focus on the high-impact tests first as they directly test the changed code
+
+Remember: These tests passed before your changes, so you introduced a regression.
+Make minimal changes to fix the tests while preserving your fix for the original issue.
+"""
+        return prompt
 
     def run_on_dataset(self, dataset_name: str, split: str = "test",
                       limit: Optional[int] = None) -> List[Dict]:

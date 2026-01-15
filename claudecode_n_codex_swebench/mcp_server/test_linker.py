@@ -204,43 +204,40 @@ class TestLinker:
         return {}
 
     def _link_by_static_analysis(self, repo_path: Path) -> int:
-        """Link tests to code by analyzing imports and calls in test files"""
+        """Link tests to code by analyzing function calls from test files.
+
+        Strategy: Find Test functions that CALL production Functions.
+        Since Test nodes are created alongside Function nodes for test functions,
+        we match them by name/file_path and trace CALLS relationships.
+        """
         links_created = 0
 
-        # Get all test files
         with self.db.driver.session(database=config.neo4j.database) as session:
+            # Find Test functions that CALL production Functions
+            # Test nodes share function_name and file_path with their Function nodes
             result = session.run(
                 """
-                MATCH (f:File)<-[:CONTAINS]-(t:Test)
-                RETURN DISTINCT f.path as file_path
+                MATCH (t:Test)
+                MATCH (tf:Function)
+                WHERE tf.name = t.function_name AND tf.file_path = t.file_path
+                MATCH (tf)-[:CALLS]->(pf:Function)
+                WHERE NOT pf.file_path CONTAINS 'test'
+                RETURN DISTINCT t.id as test_id, pf.id as function_id, pf.name as function_name
                 """
             )
-            test_files = [record["file_path"] for record in result]
 
-        # For each test file, find what it imports
-        with self.db.driver.session(database=config.neo4j.database) as session:
-            for test_file in test_files:
-                # Get functions from this file that are called in tests
-                result = session.run(
-                    """
-                    MATCH (t:Test {file_path: $test_file})-[:CALLS]->(fn:Function)
-                    WHERE NOT fn.file_path = $test_file
-                    RETURN t.id as test_id, fn.id as function_id
-                    """,
-                    test_file=test_file
-                )
-
-                for record in result:
-                    try:
-                        self.db.create_tests_relationship(
-                            record["test_id"],
-                            record["function_id"],
-                            "Function",
-                            coverage=0.8  # High confidence for direct calls
-                        )
-                        links_created += 1
-                    except Exception as e:
-                        logger.debug(f"Could not create static link: {e}")
+            for record in result:
+                try:
+                    self.db.create_tests_relationship(
+                        record["test_id"],
+                        record["function_id"],
+                        "Function",
+                        coverage=0.8  # High confidence for direct calls
+                    )
+                    links_created += 1
+                    logger.debug(f"Static link: {record['test_id']} -> {record['function_name']}")
+                except Exception as e:
+                    logger.debug(f"Could not create static link: {e}")
 
         return links_created
 

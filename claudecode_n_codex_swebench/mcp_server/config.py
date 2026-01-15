@@ -20,9 +20,9 @@ class Neo4jConfig(BaseModel):
     uri: str = "bolt://localhost:7687"
     user: str = "neo4j"
     password: str = "password"
-    database: str = "tdad_graphrag"
+    database: str = "neo4j"  # Community edition only supports default database
     # For embedded mode
-    use_embedded: bool = True
+    use_embedded: bool = False  # Use standalone Neo4j container
     embedded_path: Optional[str] = None
 
 

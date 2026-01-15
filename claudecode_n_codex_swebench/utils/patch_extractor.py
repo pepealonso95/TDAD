@@ -37,14 +37,8 @@ class PatchExtractor:
             print(status_result.stdout if status_result.stdout else "(no changes)")
             print(f"{'='*60}\n")
 
-            # First, add any untracked files to the index so they appear in diff
-            subprocess.run(
-                ["git", "add", "-N", "."],
-                capture_output=True,
-                text=True
-            )
-
-            # Get the diff against HEAD to capture all changes
+            # Only diff tracked files - don't include untracked test/debug files
+            # that Claude may have created during execution
             result = subprocess.run(
                 ["git", "diff", "HEAD", "--no-color", "--no-ext-diff"],
                 capture_output=True,
