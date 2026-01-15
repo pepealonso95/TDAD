@@ -1,0 +1,62 @@
+{
+  "timestamp": "20251120_040151",
+  "experiments": [
+    {
+      "name": "Baseline",
+      "dataset": "SWE-bench_Verified",
+      "num_instances": 50,
+      "generation_rate": 46.0,
+      "prediction_file": "/Users/rafaelalonso/Development/Master/Tesis/claudecode_n_codex_swebench/predictions/predictions_20251120_010951.jsonl",
+      "total_time": 8308.827612161636,
+      "avg_time_per_instance": 166.17655224323272,
+      "avg_patch_size": 9292,
+      "median_patch_size": 6453,
+      "num_errors": 27,
+      "error_types": {
+        "Execution Failed": 21,
+        "Repository Setup": 6
+      },
+      "graphrag_metadata": null
+    },
+    {
+      "name": "TDD",
+      "dataset": "SWE-bench_Verified",
+      "num_instances": 50,
+      "generation_rate": 0.0,
+      "prediction_file": "/Users/rafaelalonso/Development/Master/Tesis/claudecode_n_codex_swebench/predictions/predictions_20251120_032821.jsonl",
+      "total_time": 993.6881639957428,
+      "avg_time_per_instance": 19.873763279914854,
+      "avg_patch_size": 0,
+      "median_patch_size": 0,
+      "num_errors": 50,
+      "error_types": {
+        "Execution Failed": 50
+      },
+      "graphrag_metadata": null
+    },
+    {
+      "name": "GraphRAG",
+      "dataset": "SWE-bench_Verified",
+      "num_instances": 50,
+      "generation_rate": 0.0,
+      "prediction_file": "/Users/rafaelalonso/Development/Master/Tesis/claudecode_n_codex_swebench/predictions/predictions_graphrag_20251120_034523.jsonl",
+      "total_time": 1021.2745189666748,
+      "avg_time_per_instance": 20.425490379333496,
+      "avg_patch_size": 0,
+      "median_patch_size": 0,
+      "num_errors": 50,
+      "error_types": {
+        "Execution Failed": 39,
+        "Repository Setup": 11
+      },
+      "graphrag_metadata": {
+        "total_graphs_built": 0,
+        "avg_graph_build_time": 0,
+        "avg_impacted_tests_found": 0,
+        "avg_impact_analysis_time": 0,
+        "max_impacted_tests": 0,
+        "min_impacted_tests": 0
+      }
+    }
+  ]
+}

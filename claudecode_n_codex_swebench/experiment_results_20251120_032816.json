@@ -1,0 +1,22 @@
+{
+  "timestamp": "20251120_032816",
+  "experiments": [
+    {
+      "name": "Baseline",
+      "dataset": "SWE-bench_Verified",
+      "num_instances": 50,
+      "generation_rate": 46.0,
+      "prediction_file": "/Users/rafaelalonso/Development/Master/Tesis/claudecode_n_codex_swebench/predictions/predictions_20251120_010951.jsonl",
+      "total_time": 8308.827612161636,
+      "avg_time_per_instance": 166.17655224323272,
+      "avg_patch_size": 9292,
+      "median_patch_size": 6453,
+      "num_errors": 27,
+      "error_types": {
+        "Execution Failed": 21,
+        "Repository Setup": 6
+      },
+      "graphrag_metadata": null
+    }
+  ]
+}

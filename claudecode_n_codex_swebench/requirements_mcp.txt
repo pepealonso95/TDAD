@@ -1,0 +1,36 @@
+# MCP Server Dependencies for GraphRAG Test Impact Analysis
+# Install with: pip install -r requirements_mcp.txt
+
+# MCP Protocol and Server Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+python-multipart>=0.0.6
+
+# Graph Database
+neo4j>=5.14.0
+py2neo>=2021.2.3
+
+# Code Analysis
+astroid>=3.0.0
+coverage>=7.3.0
+
+# Embeddings and AI
+anthropic>=0.8.0
+
+# Git Operations (already in main requirements but listed for completeness)
+gitpython>=3.1.0
+unidiff>=0.7.5
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+
+# Utilities
+python-dotenv>=1.0.0
+httpx>=0.25.0
+aiofiles>=23.2.0
+
+# Graph Algorithms (optional but useful)
+networkx>=3.2.0

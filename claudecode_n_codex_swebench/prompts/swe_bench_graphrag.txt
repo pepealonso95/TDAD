@@ -1,0 +1,217 @@
+You are being evaluated on SWE-bench, a benchmark for real-world software engineering tasks. You need to fix a GitHub issue in a repository using Test-Driven Development (TDD) with GraphRAG-powered test impact analysis.
+
+Repository: {repo_name}
+Base Commit: {base_commit}
+Instance ID: {instance_id}
+
+ISSUE DESCRIPTION:
+{issue_description}
+
+YOUR TASK:
+You must follow a strict Test-Driven Development approach enhanced with GraphRAG test impact analysis. This system has indexed the codebase and knows which tests are affected by which code changes, allowing you to prevent regressions efficiently.
+
+GRAPHRAG-ENHANCED TDD WORKFLOW:
+
+1. UNDERSTAND THE ISSUE:
+   - Read the issue description carefully
+   - Identify what functionality is broken or what feature needs to be added
+   - Note any specific test cases or examples mentioned in the issue
+   - Determine what behavior should change and what should stay the same
+
+2. EXPLORE THE CODEBASE:
+   - Use grep to search for relevant keywords from the issue
+   - Use find to locate files mentioned in the issue
+   - Read the relevant source files to understand the current implementation
+   - CRITICALLY: Locate and examine existing test files to understand:
+     * Current test coverage
+     * Testing patterns and conventions used in this repository
+     * Which tests might be affected by your changes
+
+3. BUILD CODE-TEST DEPENDENCY GRAPH:
+   - The GraphRAG system has already indexed this repository
+   - The graph contains:
+     * All functions, classes, and their relationships
+     * Test-to-code linkages (which tests cover which code)
+     * Call graphs (which functions call which functions)
+     * Import dependencies between files
+   - This graph enables intelligent test selection
+
+4. ESTABLISH BASELINE (PREVENT REGRESSIONS):
+   - Before making any changes, note the files you plan to modify
+   - The GraphRAG system will identify ALL tests potentially impacted by these files
+   - Run the IMPACTED tests first (much faster than full suite)
+   - Note which tests currently pass (these MUST NOT break)
+   - Document any currently failing tests (to avoid false positives)
+   - This targeted baseline prevents false regressions
+
+5. WRITE TESTS FIRST (RED PHASE):
+   - Create or modify test files BEFORE touching implementation code
+   - Write specific test cases that:
+     * Verify the bug is fixed (for bug fixes)
+     * Validate the new feature works (for new features)
+     * Cover edge cases mentioned in the issue
+     * Use the repository's testing conventions
+   - Run these NEW tests to verify they FAIL initially
+   - A failing test proves you're testing the right thing
+   - DO NOT proceed to implementation until tests are written
+
+6. IMPLEMENT THE FIX (GREEN PHASE):
+   - Now and only now, use the Edit tool to modify implementation files
+   - Make minimal, targeted changes to make your NEW tests pass
+   - Preserve existing functionality
+   - Follow the coding style of the repository
+   - Focus solely on making tests pass, not on "perfect" code yet
+
+7. INCREMENTAL REGRESSION TESTING (GraphRAG-Powered):
+   - After each implementation change, the GraphRAG system will:
+     * Analyze the git diff to find exactly what changed
+     * Query the graph to find tests impacted by those specific lines
+     * Rank tests by impact score (direct tests, transitive dependencies, etc.)
+     * Run ONLY the high-impact tests first (saves time)
+   - If high-impact tests pass, expand to medium and low-impact tests
+   - This incremental approach catches regressions fast without running unnecessary tests
+
+8. IMPACT ANALYSIS WORKFLOW:
+   - **For Each File You Modify**:
+     a. Note the file path and lines changed
+     b. GraphRAG finds tests with impact scores:
+        - 1.0: Directly tests this function/class
+        - 0.7: Tests functions that call this code
+        - 0.5: Has coverage dependency on this file
+        - 0.3: Imports this module
+     c. Run tests in order of impact score
+     d. Stop and fix immediately if any test fails
+
+   - **Advantages of GraphRAG Approach**:
+     * Run 10-20 targeted tests instead of 100+ full suite
+     * Catch regressions in seconds instead of minutes
+     * Know exactly why a test might fail (graph relationships)
+     * Scale to large codebases without long test runs
+
+9. VERIFY TESTS PASS (GREEN CONFIRMATION):
+   - Run your NEW tests to confirm they now pass
+   - Run all impacted tests identified by GraphRAG
+   - If any tests fail, debug and iterate until they pass
+   - Do not proceed until all impacted tests are green
+
+10. FULL TEST SUITE (FINAL VALIDATION):
+    - Once impacted tests pass, optionally run the full test suite
+    - This is a safety check (GraphRAG should have caught everything)
+    - Compare results with your baseline from Step 4
+    - If any unexpected failures occur:
+      * Analyze what GraphRAG missed (rare but possible)
+      * Fix the regression
+      * Re-run impacted tests
+    - You MUST NOT complete until all previously passing tests still pass
+
+11. REFACTOR IF NEEDED (OPTIONAL):
+    - Only if tests are all green, consider code quality improvements
+    - After any refactoring, re-run impacted tests (not full suite needed)
+    - GraphRAG makes refactoring safer by identifying affected tests instantly
+
+GRAPHRAG TEST IMPACT STRATEGIES:
+
+The system uses multiple strategies to find impacted tests:
+
+1. **Direct Testing** (Score: 1.0)
+   - Tests that explicitly test the modified function/class
+   - These MUST be run - they directly validate your change
+
+2. **Transitive Call Dependencies** (Score: 0.7)
+   - Tests for functions that call your modified code
+   - High probability of being affected
+
+3. **Coverage Dependencies** (Score: variable)
+   - Tests that executed the modified lines (from coverage.py data)
+   - Coverage % determines impact score
+
+4. **Import Dependencies** (Score: 0.5)
+   - Tests in files that import the modified module
+   - Lower probability but still relevant
+
+5. **Inheritance Relationships** (Score: 0.6)
+   - Tests for classes that inherit from modified classes
+   - Critical for object-oriented code
+
+TDD + GRAPHRAG PRINCIPLES:
+
+- **Test First, Always**: Never write implementation code before writing tests
+- **Red → Green → Refactor**: Follow the TDD cycle strictly
+- **Intelligent Regression Prevention**: Use GraphRAG to run the RIGHT tests, not ALL tests
+- **No Regressions**: Previously passing tests MUST continue to pass
+- **Minimal Changes**: Write just enough code to make tests pass
+- **Incremental Testing**: Run impacted tests after each change
+- **Test Quality**: Tests should be clear, specific, and cover edge cases
+
+GRAPHRAG-SPECIFIC REQUIREMENTS:
+
+- The graph has been pre-built for this repository
+- After making changes, consult the impact analysis
+- Prioritize running high-impact tests first
+- If a high-impact test fails, fix immediately before proceeding
+- Trust the graph's impact scores - they're based on actual code relationships
+- Use incremental updates to the graph after significant refactoring
+
+REGRESSION PREVENTION WITH GRAPHRAG:
+
+- **Before Changes**: Get baseline for impacted tests (not full suite)
+- **During Changes**: Run impacted tests after each file edit
+- **After Changes**: Validate all impacted tests pass
+- **Final Check**: Optionally run full suite as safety net
+- **Efficiency Gain**: Run 10-50 tests instead of 100-500 tests
+- **Time Savings**: Seconds for targeted tests vs minutes for full suite
+
+IMPORTANT GUIDELINES:
+
+- Focus on fixing ONLY the issue described - do not make unrelated improvements
+- Write tests that prove the issue exists, then fix it
+- Make the minimal changes necessary to make all tests pass
+- Use GraphRAG impact analysis to guide which tests to run
+- Trust the graph's test recommendations - they're based on code structure
+- If the impact analysis shows zero impacted tests, be suspicious and investigate
+- Preserve backward compatibility unless the issue specifically requires breaking changes
+- If the issue mentions specific test cases, ensure your tests validate them
+- Use the Edit or Write tools to make actual file changes - do not just describe changes
+- Do not add comments unless they are essential for understanding the fix
+- You MUST edit the actual files to fix the issue, not just analyze or explain the problem
+- Include test execution output in your work to prove tests pass
+
+ANTI-PATTERNS TO AVOID:
+
+- ❌ Writing implementation before tests
+- ❌ Skipping the impact analysis
+- ❌ Running full test suite every time (inefficient)
+- ❌ Ignoring high-impact test failures
+- ❌ Assuming no tests are impacted (always verify with GraphRAG)
+- ❌ Making large changes without incremental testing
+- ❌ Not trusting the graph's recommendations
+
+SUCCESS CRITERIA:
+
+✅ New tests written that validate the fix
+✅ New tests initially failed (proving they test the issue)
+✅ New tests now pass (proving the fix works)
+✅ All impacted tests identified by GraphRAG pass (no regressions)
+✅ Test execution output provided as evidence
+✅ Impact analysis consulted and acted upon
+✅ Efficient test execution (targeted, not exhaustive)
+
+GRAPHRAG ADVANTAGE SUMMARY:
+
+Traditional TDD:
+- Run 500 tests
+- Takes 5 minutes
+- Most tests irrelevant to your change
+
+GraphRAG-Enhanced TDD:
+- Identify 15 impacted tests via graph
+- Run only those 15 tests
+- Takes 10 seconds
+- Catch regressions just as effectively
+- 30x faster feedback loop
+
+The repository is located at: {base_path}
+
+Remember: The goal is to fix the issue without breaking existing functionality, and to do so EFFICIENTLY using graph-based test impact analysis. Tests are your proof, GraphRAG is your guide.
+
+NOTE: The GraphRAG system is available and has indexed this repository. After you make changes, the system will automatically identify impacted tests for you to run.

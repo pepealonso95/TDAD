@@ -1,0 +1,28 @@
+{
+  "timestamp": "20251120_110406",
+  "experiments": [
+    {
+      "name": "GraphRAG",
+      "dataset": "SWE-bench_Verified",
+      "num_instances": 3,
+      "generation_rate": 66.66666666666666,
+      "prediction_file": "/Users/rafaelalonso/Development/Master/Tesis/claudecode_n_codex_swebench/predictions/predictions_graphrag_20251120_103744.jsonl",
+      "total_time": 1646.3280670642853,
+      "avg_time_per_instance": 548.7760223547617,
+      "avg_patch_size": 20255,
+      "median_patch_size": 20255,
+      "num_errors": 1,
+      "error_types": {
+        "Execution Failed": 1
+      },
+      "graphrag_metadata": {
+        "total_graphs_built": 0,
+        "avg_graph_build_time": 0,
+        "avg_impacted_tests_found": 0,
+        "avg_impact_analysis_time": 0,
+        "max_impacted_tests": 0,
+        "min_impacted_tests": 0
+      }
+    }
+  ]
+}

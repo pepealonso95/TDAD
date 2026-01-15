@@ -78,6 +78,32 @@ CODEX_EXPECTED = {
     "codex-4.2": {"min": 20, "max": 35, "typical": 28},
 }
 
+# Qwen models (Ollama-based)
+QWEN_MODELS: Dict[str, str] = {
+    "qwen3-coder-30b": "qwen3-coder:30b",
+    "qwen3-coder:30b": "qwen3-coder:30b",
+    "qwen3-coder": "qwen3-coder:30b",
+    "qwen-latest": "qwen3-coder:30b",
+    "qwen": "qwen3-coder:30b",
+    "best": "qwen3-coder:30b",
+    "latest": "qwen3-coder:30b",
+}
+
+QWEN_DESCRIPTIONS = {
+    "qwen3-coder-30b": "Qwen 3 Coder 30B - Latest Qwen coding model",
+    "qwen3-coder": "Alias for Qwen 3 Coder 30B",
+    "qwen-latest": "Latest Qwen model available",
+}
+
+QWEN_CATEGORIES = {
+    "Qwen Models": ["qwen3-coder-30b", "qwen3-coder"],
+    "Quick Aliases": ["best", "latest"],
+}
+
+QWEN_EXPECTED = {
+    "qwen3-coder-30b": {"min": 15, "max": 30, "typical": 22},
+}
+
 
 def _resolve(models: Dict[str, str], alias: str, seen=None) -> str:
     if seen is None:
@@ -106,6 +132,8 @@ def get_model_name(alias: str, backend: str = "claude") -> str:
     backend = backend.lower()
     if backend == "codex":
         models = CODEX_MODELS
+    elif backend == "qwen":
+        models = QWEN_MODELS
     else:
         models = CLAUDE_MODELS
     if alias in models:
@@ -120,6 +148,10 @@ def list_models(backend: str = "claude") -> str:
         categories = CODEX_CATEGORIES
         descriptions = CODEX_DESCRIPTIONS
         title = "Available Codex Models"
+    elif backend == "qwen":
+        categories = QWEN_CATEGORIES
+        descriptions = QWEN_DESCRIPTIONS
+        title = "Available Qwen Models"
     else:
         categories = CLAUDE_CATEGORIES
         descriptions = CLAUDE_DESCRIPTIONS
@@ -146,8 +178,15 @@ def validate_model(alias: str) -> bool:
 def get_expected_performance(model: str, backend: str = "claude") -> dict:
     """Get expected SWE-bench performance for a model."""
     backend = backend.lower()
-    models = CODEX_MODELS if backend == "codex" else CLAUDE_MODELS
-    expectations = CODEX_EXPECTED if backend == "codex" else CLAUDE_EXPECTED
+    if backend == "codex":
+        models = CODEX_MODELS
+        expectations = CODEX_EXPECTED
+    elif backend == "qwen":
+        models = QWEN_MODELS
+        expectations = QWEN_EXPECTED
+    else:
+        models = CLAUDE_MODELS
+        expectations = CLAUDE_EXPECTED
     full_model = get_model_name(model, backend)
     for alias, full in models.items():
         if full == full_model or alias == model:
