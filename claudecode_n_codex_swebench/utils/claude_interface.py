@@ -24,13 +24,14 @@ class ClaudeCodeInterface:
                 "Claude CLI not found. Please ensure 'claude' is installed and in PATH"
             )
 
-    def execute_code_cli(self, prompt: str, cwd: str, model: str = None) -> Dict[str, any]:
+    def execute_code_cli(self, prompt: str, cwd: str, model: str = None, tdd_mode: bool = False) -> Dict[str, any]:
         """Execute Claude Code via CLI and capture the response.
 
         Args:
             prompt: The prompt to send to Claude.
             cwd: Working directory to execute in.
             model: Optional model to use (e.g., 'opus-4.1', 'sonnet-3.7').
+            tdd_mode: Ignored for Claude (TDD mode only applies to Qwen).
         """
         try:
             # Save the current directory

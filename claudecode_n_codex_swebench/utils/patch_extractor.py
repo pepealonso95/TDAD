@@ -19,12 +19,34 @@ class PatchExtractor:
             re.DOTALL
         )
         
-    def extract_from_cli_output(self, output: str, repo_path: str) -> str:
-        """Extract patch from Claude Code CLI output by analyzing git diff."""
+    def extract_from_cli_output(self, output: str, repo_path: str, created_files: List[str] = None) -> str:
+        """Extract patch from Claude Code CLI output by analyzing git diff.
+
+        Args:
+            output: CLI output (for compatibility, not currently used)
+            repo_path: Path to the repository
+            created_files: List of files that were created (not just modified).
+                          These need to be staged with git add -N to appear in diff.
+        """
         try:
             # Change to repo directory
             original_cwd = os.getcwd()
             os.chdir(repo_path)
+
+            # Stage created files so they appear in git diff
+            # Use "git add -N" (intent to add) to make them show up as new files
+            if created_files:
+                print(f"  📁 Staging {len(created_files)} created file(s) for diff...")
+                for filepath in created_files:
+                    add_result = subprocess.run(
+                        ["git", "add", "-N", filepath],
+                        capture_output=True,
+                        text=True
+                    )
+                    if add_result.returncode == 0:
+                        print(f"    ✓ Staged: {filepath}")
+                    else:
+                        print(f"    ✗ Failed to stage {filepath}: {add_result.stderr}")
 
             # DEBUG: Check git status before extracting patch
             status_result = subprocess.run(
@@ -37,8 +59,7 @@ class PatchExtractor:
             print(status_result.stdout if status_result.stdout else "(no changes)")
             print(f"{'='*60}\n")
 
-            # Only diff tracked files - don't include untracked test/debug files
-            # that Claude may have created during execution
+            # Diff all tracked files (including intent-to-add files)
             result = subprocess.run(
                 ["git", "diff", "HEAD", "--no-color", "--no-ext-diff"],
                 capture_output=True,

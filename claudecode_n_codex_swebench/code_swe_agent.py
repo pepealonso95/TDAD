@@ -185,7 +185,9 @@ class CodeSWEAgent:
                     "error": f"Execution failed: {result['stderr']}",
                 }
 
-            patch = self.patch_extractor.extract_from_cli_output(result["stdout"], repo_path)
+            # Pass created_files so they can be staged for inclusion in diff
+            created_files = result.get("created_files", [])
+            patch = self.patch_extractor.extract_from_cli_output(result["stdout"], repo_path, created_files)
 
             is_valid, error = self.patch_extractor.validate_patch(patch)
             if not is_valid:

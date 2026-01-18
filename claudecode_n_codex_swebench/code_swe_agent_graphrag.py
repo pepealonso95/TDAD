@@ -52,6 +52,7 @@ class GraphRAGCodeSWEAgent:
         model: Optional[str] = None,
         backend: str = DEFAULT_BACKEND,
         use_graphrag: bool = True,
+        tdd_mode: bool = False,
         impact_threshold: float = 0.3,
         max_impacted_tests: int = 50,
         mcp_server_url: str = "http://localhost:8080"
@@ -64,6 +65,7 @@ class GraphRAGCodeSWEAgent:
             model: Model to use
             backend: Backend (claude or codex)
             use_graphrag: Enable GraphRAG features
+            tdd_mode: Enable TDD-focused prompts (for Qwen backend)
             impact_threshold: Minimum impact score (0-1) for test selection
             max_impacted_tests: Maximum number of impacted tests to run
             mcp_server_url: MCP server URL (for external server)
@@ -95,6 +97,7 @@ class GraphRAGCodeSWEAgent:
 
         # GraphRAG configuration
         self.use_graphrag = use_graphrag
+        self.tdd_mode = tdd_mode
         self.impact_threshold = impact_threshold
         self.max_impacted_tests = max_impacted_tests
         self.mcp: Optional[GraphRAGMCPInterface] = None
@@ -374,7 +377,7 @@ class GraphRAGCodeSWEAgent:
             graphrag_suffix = " + GraphRAG" if self.use_graphrag else ""
             print(f"Running {self.backend.title()} Code{model_info}{graphrag_suffix}...")
 
-            result = self.interface.execute_code_cli(prompt, repo_path, self.model)
+            result = self.interface.execute_code_cli(prompt, repo_path, self.model, tdd_mode=self.tdd_mode)
 
             if not result["success"]:
                 print(f"{self.backend.title()} Code execution failed: {result['stderr']}")
@@ -451,7 +454,7 @@ class GraphRAGCodeSWEAgent:
                             print(f"\nAsking agent to fix {len(failed_tests)} failing tests...")
 
                             # Run agent again with failure context
-                            fix_result = self.interface.execute_code_cli(failure_prompt, repo_path, self.model)
+                            fix_result = self.interface.execute_code_cli(failure_prompt, repo_path, self.model, tdd_mode=self.tdd_mode)
 
                             if not fix_result["success"]:
                                 print("Agent failed to fix regressions")
@@ -464,7 +467,9 @@ class GraphRAGCodeSWEAgent:
                     print("No Python files changed")
 
             # Step 4: Extract and validate patch
-            patch = self.patch_extractor.extract_from_cli_output(result["stdout"], repo_path)
+            # Pass created_files so they can be staged for inclusion in diff
+            created_files = result.get("created_files", [])
+            patch = self.patch_extractor.extract_from_cli_output(result["stdout"], repo_path, created_files)
 
             is_valid, error = self.patch_extractor.validate_patch(patch)
             if not is_valid:
@@ -696,6 +701,8 @@ def main():
                        help="Code model backend to use (claude, codex, or qwen)")
     parser.add_argument("--no-graphrag", action="store_true",
                        help="Disable GraphRAG features (use baseline TDD)")
+    parser.add_argument("--tdd", action="store_true",
+                       help="Enable TDD mode (test-first prompts, for Qwen backend)")
     parser.add_argument("--impact-threshold", type=float, default=0.3,
                        help="Minimum impact score for test selection (0-1)")
     parser.add_argument("--max-impacted-tests", type=int, default=50,
@@ -723,6 +730,7 @@ def main():
         model=args.model,
         backend=backend,
         use_graphrag=not args.no_graphrag,
+        tdd_mode=args.tdd,
         impact_threshold=args.impact_threshold,
         max_impacted_tests=args.max_impacted_tests,
         mcp_server_url=args.mcp_server_url

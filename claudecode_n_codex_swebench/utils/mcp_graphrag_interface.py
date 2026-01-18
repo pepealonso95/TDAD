@@ -112,6 +112,68 @@ class GraphRAGMCPInterface:
     # High-level API Methods
     # ========================================================================
 
+    def _get_repo_cache_key(self, repo_path: str) -> str:
+        """
+        Generate a cache key for a repository based on name and commit hash.
+
+        Args:
+            repo_path: Path to repository
+
+        Returns:
+            Cache key string like "django_b93a0e34"
+        """
+        try:
+            # Get repo name from path
+            repo_name = Path(repo_path).name
+
+            # Get current commit hash
+            result = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            commit_hash = result.stdout.strip()[:8] if result.returncode == 0 else "unknown"
+
+            cache_key = f"{repo_name}_{commit_hash}"
+            logger.debug(f"Generated cache key: {cache_key}")
+            return cache_key
+
+        except Exception as e:
+            logger.warning(f"Failed to generate cache key: {e}")
+            return f"{Path(repo_path).name}_unknown"
+
+    def _check_graph_exists(self, cache_key: str) -> bool:
+        """
+        Check if a graph already exists for the given cache key.
+
+        Args:
+            cache_key: The repo+commit cache key
+
+        Returns:
+            True if graph exists, False otherwise
+        """
+        try:
+            response = requests.get(
+                f"{self.server_url}/stats",
+                timeout=10
+            )
+            if response.status_code == 200:
+                stats = response.json()
+                # Check if graph has nodes and the cache key matches
+                # We store cache_key in the repo_path that was indexed
+                current_repo = stats.get("last_indexed_repo", "")
+                if cache_key in current_repo or current_repo.endswith(cache_key.split("_")[0]):
+                    node_count = stats.get("total_nodes", 0)
+                    if node_count > 0:
+                        logger.info(f"Found cached graph with {node_count} nodes")
+                        return True
+            return False
+        except Exception as e:
+            logger.debug(f"Cache check failed: {e}")
+            return False
+
     def build_graph(
         self,
         repo_path: str,
@@ -129,7 +191,23 @@ class GraphRAGMCPInterface:
         Returns:
             Dict with build results
         """
-        logger.info(f"Building graph for: {repo_path}")
+        # Generate cache key
+        cache_key = self._get_repo_cache_key(repo_path)
+        logger.info(f"Building graph for: {repo_path} (cache_key: {cache_key})")
+
+        # Check cache unless force_rebuild
+        if not force_rebuild:
+            if self._check_graph_exists(cache_key):
+                logger.info(f"Using cached graph for {cache_key}")
+                # Get stats to return meaningful data
+                stats = self.get_stats()
+                return {
+                    "success": True,
+                    "cached": True,
+                    "cache_key": cache_key,
+                    "nodes_created": stats.get("total_nodes", 0),
+                    "relationships_created": stats.get("total_relationships", 0)
+                }
 
         try:
             response = requests.post(
@@ -139,7 +217,7 @@ class GraphRAGMCPInterface:
                     "force_rebuild": force_rebuild,
                     "include_tests": include_tests
                 },
-                timeout=600  # 10 minutes
+                timeout=1800  # 30 minutes for large repos like Django
             )
 
             response.raise_for_status()
@@ -505,7 +583,11 @@ class GraphRAGMCPInterface:
                     "impact_score": impact_score
                 })
 
-        all_passed = test_result.get("failed", 0) == 0
+        # Tests must have actually run successfully AND have no failures
+        # If pytest fails to run (e.g., missing deps), success=False but failed=0
+        test_execution_succeeded = test_result.get("success", False)
+        no_failures = test_result.get("failed", 0) == 0
+        all_passed = test_execution_succeeded and no_failures
 
         return {
             "success": all_passed,

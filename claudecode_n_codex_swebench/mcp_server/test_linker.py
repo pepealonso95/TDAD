@@ -298,7 +298,9 @@ class TestRunner:
                 "regressions": 0,  # TODO: implement
                 "test_results": test_results,
                 "stdout": result.stdout,
-                "stderr": result.stderr
+                "stderr": result.stderr,
+                # Include error info when pytest fails (returncode != 0)
+                "error": result.stderr if result.returncode != 0 else None
             }
 
         except subprocess.TimeoutExpired:

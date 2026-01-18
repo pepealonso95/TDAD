@@ -82,45 +82,123 @@ class QwenCodeInterface:
 
         return None
 
-    def _apply_file_changes(self, cwd: str, response: str) -> bool:
-        """Parse response for file changes and apply them directly."""
-        applied = False
+    def _apply_file_changes(self, cwd: str, response: str) -> tuple:
+        """Parse response for file changes and apply them directly.
 
-        # Pattern 1: <<<FILE: path>>> followed by code block
-        file_pattern1 = r'<<<FILE:\s*([^\s>]+\.py)>>>\s*\n```(?:python)?\n(.*?)```'
+        Returns:
+            Tuple of (applied: bool, created_files: list of file paths that were created)
+        """
+        applied = False
+        created_files = []  # Track newly created files for patch extraction
+
+        # ========================================
+        # Pre-processing: Normalize response
+        # ========================================
+
+        # Normalize line endings (CRLF → LF)
+        response = response.replace('\r\n', '\n')
+
+        # Strip Qwen3 thinking blocks if present
+        response = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL)
+
+        # ========================================
+        # Pattern matching (more flexible patterns)
+        # ========================================
+
+        # Pattern 1: <<<FILE: path>>> followed by code block (handle whitespace variations)
+        file_pattern1 = r'<<<FILE:\s*([^\s>]+\.py)\s*>>>\s*\n\s*```(?:python)?\s*\n(.*?)\n\s*```'
         matches = re.findall(file_pattern1, response, re.DOTALL)
 
         # Pattern 2: FILE: path followed by code block
         if not matches:
-            file_pattern2 = r'FILE:\s*([^\s`\n]+\.py)\s*\n```(?:python)?\n(.*?)```'
+            file_pattern2 = r'FILE:\s*([^\s`\n]+\.py)\s*\n\s*```(?:python)?\s*\n(.*?)\n\s*```'
             matches = re.findall(file_pattern2, response, re.DOTALL)
 
         # Pattern 3: **path** or `path` followed by code block
         if not matches:
-            file_pattern3 = r'(?:\*\*|`)([^\s*`]+\.py)(?:\*\*|`)\s*(?::|)\s*\n```(?:python)?\n(.*?)```'
+            file_pattern3 = r'(?:\*\*|`)([^\s*`]+\.py)(?:\*\*|`)\s*(?::|)\s*\n\s*```(?:python)?\s*\n(.*?)\n\s*```'
             matches = re.findall(file_pattern3, response, re.DOTALL)
 
         print(f"  📄 Found {len(matches)} file change(s) in response")
 
+        # ========================================
+        # Content validation markers (reject placeholder responses)
+        # ========================================
+        placeholder_markers = [
+            "# The COMPLETE file content goes here",
+            "# Include ALL imports",
+            "# This replaces the entire file",
+            "# The complete file content goes here",
+            "# COMPLETE file content",
+            "# PUT YOUR CODE HERE",
+        ]
+
+        # Track unique files to avoid duplicate updates
+        updated_files = set()
+
         for filepath, content in matches:
             # Clean up filepath
             filepath = filepath.strip().lstrip('./')
+
+            # Skip if we already updated this file (Qwen sometimes repeats)
+            if filepath in updated_files:
+                print(f"  ⏭️ Skipping duplicate: {filepath}")
+                continue
+
             full_path = Path(cwd) / filepath
 
             print(f"  📝 Attempting to update: {filepath}")
 
+            # ========================================
+            # Content validation
+            # ========================================
+
+            # Check for placeholder responses
+            if any(marker.lower() in content.lower() for marker in placeholder_markers):
+                print(f"  ⚠️ Skipping placeholder response for: {filepath}")
+                continue
+
+            # Check for too-short responses (likely incomplete)
+            content_stripped = content.strip()
+            if len(content_stripped) < 50:
+                print(f"  ⚠️ Skipping too-short response ({len(content_stripped)} chars) for: {filepath}")
+                continue
+
+            # Check if content has any actual Python code (at least one function/class/import)
+            has_python_code = any(keyword in content for keyword in [
+                'def ', 'class ', 'import ', 'from ', 'if ', 'for ', 'while ', 'return ', '='
+            ])
+            if not has_python_code:
+                print(f"  ⚠️ Skipping response with no Python code for: {filepath}")
+                continue
+
+            # ========================================
+            # Apply changes
+            # ========================================
+
             if full_path.exists():
                 try:
                     with open(full_path, 'w') as f:
-                        f.write(content.strip() + '\n')
+                        f.write(content_stripped + '\n')
                     print(f"  ✅ Updated: {filepath}")
                     applied = True
+                    updated_files.add(filepath)
                 except Exception as e:
                     print(f"  ❌ Failed to update {filepath}: {e}")
             else:
-                print(f"  ⚠️ File not found: {filepath}")
+                # Create new file (for TDD test files and new implementations)
+                try:
+                    full_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(full_path, 'w') as f:
+                        f.write(content_stripped + '\n')
+                    print(f"  ✅ Created: {filepath}")
+                    applied = True
+                    updated_files.add(filepath)
+                    created_files.append(filepath)  # Track for patch extraction
+                except Exception as e:
+                    print(f"  ❌ Failed to create {filepath}: {e}")
 
-        return applied
+        return applied, created_files
 
     def execute_code_cli(self, prompt: str, cwd: str, model: str = None, tdd_mode: bool = False) -> Dict[str, any]:
         """Execute single-shot Qwen call via Ollama.
@@ -244,7 +322,7 @@ START YOUR RESPONSE WITH THE FILE MARKER. DO NOT EXPLAIN."""
             print(f"{'='*60}\n")
 
             # Try to apply changes from response
-            changes_applied = self._apply_file_changes(cwd, model_response)
+            changes_applied, created_files = self._apply_file_changes(cwd, model_response)
 
             # Also try patch extraction as fallback
             if not changes_applied:
@@ -270,7 +348,8 @@ START YOUR RESPONSE WITH THE FILE MARKER. DO NOT EXPLAIN."""
                 "stdout": model_response,
                 "stderr": "",
                 "returncode": 0,
-                "changes_applied": changes_applied
+                "changes_applied": changes_applied,
+                "created_files": created_files  # For patch extraction of new files
             }
 
         except requests.exceptions.Timeout:

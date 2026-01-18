@@ -37,13 +37,14 @@ class CodexCodeInterface:
         except FileNotFoundError as e:
             raise RuntimeError(f"Required tool not found: {str(e)}")
 
-    def execute_code_cli(self, prompt: str, cwd: str, model: str = None) -> Dict[str, any]:
+    def execute_code_cli(self, prompt: str, cwd: str, model: str = None, tdd_mode: bool = False) -> Dict[str, any]:
         """Execute GPT-OSS using Codex CLI - single call (no iteration).
 
         Args:
             prompt: The prompt to send to Codex CLI.
             cwd: Working directory to execute in.
             model: Optional model to use (default: gpt-oss:20b).
+            tdd_mode: Ignored for Codex (TDD mode only applies to Qwen).
         """
         try:
             model_name = model if model else "gpt-oss:20b"
