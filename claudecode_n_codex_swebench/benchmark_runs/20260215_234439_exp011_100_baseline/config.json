@@ -1,0 +1,16 @@
+{
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "variants": [
+    {
+      "name": "baseline",
+      "backend": "qwen-mini",
+      "tdd_mode": false,
+      "use_graphrag": false
+    }
+  ],
+  "limit": 100,
+  "instance_ids": null,
+  "skip_eval": false,
+  "max_workers": 2,
+  "run_name": "exp011_100_baseline"
+}

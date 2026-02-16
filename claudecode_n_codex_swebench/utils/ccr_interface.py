@@ -97,7 +97,7 @@ class CCRCodeInterface:
         except subprocess.TimeoutExpired:
             try:
                 os.chdir(original_cwd)
-            except:
+            except Exception:
                 pass
             return {
                 "success": False,
@@ -108,7 +108,7 @@ class CCRCodeInterface:
         except Exception as e:
             try:
                 os.chdir(original_cwd)
-            except:
+            except Exception:
                 pass
             return {
                 "success": False,

@@ -2238,3 +2238,97 @@ The thesis hypothesis is supported: **System-level enforcement of TDD (via Graph
 
 ---
 
+## EXP-010: Docker Truth Validation and Repair Baseline (10 Submitted Instances)
+
+### Metadata
+- **Date**: February 15, 2026
+- **Configuration**: Qwen-Mini single-pass with official Docker harness evaluation
+- **Model**: qwen3-coder:30b via Ollama (`qwen-mini` backend)
+- **Dataset**: SWE-bench Verified
+- **Sample Size**: 500 total dataset, 10 submitted predictions
+- **Purpose**: Validate true functional success rate with containerized evaluation and establish a concrete repair baseline
+
+### Hypothesis
+
+A real Docker SWE-bench evaluation on the submitted predictions will expose true code correctness (not just code generation), isolate failure classes, and provide a reliable baseline for repair.
+
+### Method
+
+```bash
+cd /Users/rafaelalonso/Development/Master/Tesis/claudecode_n_codex_swebench
+
+DOCKER_CONFIG=/tmp/docker-nocreds python3 evaluate_predictions.py \
+  --file predictions_20260214_122836.jsonl \
+  --dataset princeton-nlp/SWE-bench_Verified \
+  --max-workers 2 \
+  --force
+```
+
+### Results
+
+#### Official Run Output
+
+- **Run ID**: `eval_20260215_134052`
+- **Report File**: `claudecode_n_codex_swebench/evaluation_results/qwen-mini.eval_20260215_134052.json`
+- **Total Instances**: `500`
+- **Submitted Instances**: `10`
+- **Completed Instances**: `5`
+- **Empty Patch Instances**: `5`
+- **Resolved Instances**: `1`
+- **Unresolved Instances**: `4`
+
+#### Instance-Level Outcome
+
+- **Resolved**: `astropy__astropy-14309`
+- **Unresolved**:
+  - `astropy__astropy-12907`
+  - `astropy__astropy-13033`
+  - `astropy__astropy-13236`
+  - `astropy__astropy-14182`
+- **Empty Patch**:
+  - `astropy__astropy-13398`
+  - `astropy__astropy-13453`
+  - `astropy__astropy-13579`
+  - `astropy__astropy-13977`
+  - `astropy__astropy-14096`
+
+### Analysis
+
+#### Failure Modes by Unresolved Instance
+
+- `astropy__astropy-12907`: modified `_cdot` operand handling and introduced regression (`PASS_TO_PASS` breakage).
+- `astropy__astropy-13033`: patch focused on error-message formatting; target failing behavior remained unresolved.
+- `astropy__astropy-13236`: produced duplicated warning blocks multiple times; non-targeted and noisy patch.
+- `astropy__astropy-14182`: constructor/signature changes in RST path created baseline regressions.
+
+#### Denominator Clarification
+
+- **Full dataset view**: `1/500 = 0.2%`
+- **Submitted batch view**: `1/10 = 10%`
+- **Non-empty patch view**: `1/5 = 20%`
+
+#### Architecture and Approach Changes Introduced
+
+- Switched from reconstruction-style confidence to **official Docker harness truth validation**.
+- Added Docker credential-helper bypass for reliability:
+  - `DOCKER_CONFIG=/tmp/docker-nocreds`
+- Used forced clean rerun to avoid stale result reuse:
+  - `--force`
+- Locked a stabilization run shape for repair:
+  - Backend: `qwen-mini` single-pass
+  - Scope: rerun same 10 submitted instances before scaling up
+
+### Decisions and Next Actions
+
+1. Regenerate patches for unresolved + empty-patch instances with stricter targeted-edit constraints.
+2. Re-evaluate the repaired 10-instance batch with Docker harness.
+3. Scale to larger sample only after improving resolved count and reducing regressions.
+
+### Predictions File
+
+`predictions_20260214_122836.jsonl`
+
+### Status
+🟡 **PARTIAL** - Infrastructure path is validated; patch quality is the current bottleneck
+
+---

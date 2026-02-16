@@ -21,6 +21,7 @@ import jsonlines
 from utils.claude_interface import ClaudeCodeInterface
 from utils.codex_interface import CodexCodeInterface
 from utils.qwen_interface import QwenCodeInterface
+from utils.qwen_mini_interface import QwenMiniInterface
 from utils.gptoss_interface import GPTOSSCodeInterface
 from utils.ccr_interface import CCRCodeInterface
 from utils.prompt_formatter import PromptFormatter
@@ -32,20 +33,54 @@ DEFAULT_BACKEND = os.environ.get("CODE_SWE_BACKEND", "claude")
 CACHE_DIR = Path(__file__).parent / "data"
 
 
-def load_cached_dataset(dataset_name: str, split: str = "test"):
-    """Load dataset from local cache if available, otherwise from HuggingFace."""
+def load_cached_dataset(dataset_name: str, split: str = "test",
+                        limit: int = None, instance_id: str = None):
+    """Load dataset from local cache if available, otherwise from HuggingFace.
+
+    Args:
+        dataset_name: HuggingFace dataset name
+        split: Dataset split (default "test")
+        limit: Only return the first N instances (applied after cache load)
+        instance_id: If set, return a list containing only this instance
+    """
     cache_path = CACHE_DIR / (dataset_name.replace("/", "_") + ".json")
 
     if cache_path.exists():
         print(f"Loading from cache: {cache_path}")
         with open(cache_path, 'r') as f:
             data = json.load(f)
+
+        # Single instance lookup — fast path
+        if instance_id:
+            for item in data:
+                if item["instance_id"] == instance_id:
+                    print(f"Loaded 1 instance ({instance_id}) from cache")
+                    return [item]
+            raise ValueError(f"Instance {instance_id} not found in cache")
+
+        if limit:
+            data = data[:limit]
+
         print(f"Loaded {len(data)} instances from cache")
         return data
 
     print(f"Cache not found at {cache_path}, downloading from HuggingFace...")
     print(f"(Run 'python cache_dataset.py --dataset {dataset_name}' to cache it)")
-    return load_dataset(dataset_name, split=split)
+    dataset = load_dataset(dataset_name, split=split)
+
+    if instance_id:
+        for item in dataset:
+            if item["instance_id"] == instance_id:
+                return [dict(item)]
+        raise ValueError(f"Instance {instance_id} not found in dataset")
+
+    if limit:
+        if hasattr(dataset, 'select'):
+            dataset = dataset.select(range(min(limit, len(dataset))))
+        else:
+            dataset = dataset[:min(limit, len(dataset))]
+
+    return dataset
 
 
 class CodeSWEAgent:
@@ -61,6 +96,8 @@ class CodeSWEAgent:
             self.interface = CodexCodeInterface()
         elif self.backend == "qwen":
             self.interface = QwenCodeInterface()
+        elif self.backend == "qwen-mini":
+            self.interface = QwenMiniInterface()
         elif self.backend == "gptoss":
             self.interface = GPTOSSCodeInterface()
         elif self.backend == "ccr":
@@ -148,6 +185,46 @@ class CodeSWEAgent:
         print(f"\nProcessing {instance_id}")
 
         original_dir = os.getcwd()
+
+        # qwen-mini handles repository setup internally
+        if self.backend == "qwen-mini":
+            try:
+                tdd_info = " (TDD mode)" if self.tdd_mode else ""
+                print(f"Running Qwen-Mini (Mini-SWE-Agent + Ollama){tdd_info}...")
+
+                result = self.interface.execute_code_cli(
+                    instance_id=instance["instance_id"],
+                    problem_statement=instance["problem_statement"],
+                    repo=instance["repo"],
+                    base_commit=instance["base_commit"],
+                    hints_text=instance.get("hints_text", ""),
+                    tdd_mode=self.tdd_mode,
+                    graphrag_enabled=False
+                )
+
+                if result.get("error"):
+                    return {
+                        "instance_id": instance_id,
+                        "model": "qwen-mini",
+                        "prediction": "",
+                        "error": result["error"],
+                    }
+
+                return {
+                    "instance_id": instance_id,
+                    "model": "qwen-mini",
+                    "prediction": result.get("prediction", ""),
+                }
+            except Exception as e:
+                import traceback
+                print(f"Error processing instance: {e}")
+                print(f"Traceback: {traceback.format_exc()}")
+                return {
+                    "instance_id": instance_id,
+                    "model": "qwen-mini",
+                    "prediction": "",
+                    "error": str(e),
+                }
 
         repo_path = self.setup_repository(instance)
         if not repo_path:
@@ -237,14 +314,7 @@ class CodeSWEAgent:
                       limit: Optional[int] = None) -> List[Dict]:
         """Run on a full dataset."""
         print(f"Loading dataset: {dataset_name}")
-        dataset = load_cached_dataset(dataset_name, split=split)
-        
-        if limit:
-            # Handle both HuggingFace Dataset and plain list from cache
-            if hasattr(dataset, 'select'):
-                dataset = dataset.select(range(min(limit, len(dataset))))
-            else:
-                dataset = dataset[:min(limit, len(dataset))]
+        dataset = load_cached_dataset(dataset_name, split=split, limit=limit)
             
         self.pred_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.pred_file = self.predictions_dir / f"predictions_{self.pred_timestamp}.jsonl"
@@ -271,19 +341,8 @@ class CodeSWEAgent:
     
     def run_on_instance(self, instance_id: str, dataset_name: str = "princeton-nlp/SWE-bench_Lite") -> Dict:
         """Run on a single instance by ID."""
-        dataset = load_cached_dataset(dataset_name, split="test")
-        
-        # Find the instance
-        instance = None
-        for item in dataset:
-            if item["instance_id"] == instance_id:
-                instance = item
-                break
-                
-        if not instance:
-            raise ValueError(f"Instance {instance_id} not found in dataset")
-            
-        return self.process_instance(instance)
+        dataset = load_cached_dataset(dataset_name, split="test", instance_id=instance_id)
+        return self.process_instance(dataset[0])
     
     def _save_predictions(self, prediction: Dict):
         """Append a single prediction to the jsonl file."""
@@ -307,8 +366,8 @@ def main():
                        help="Path to custom prompt template")
     parser.add_argument("--model", type=str,
                        help="Model to use (e.g., opus-4.1, codex-4.2, or any name)")
-    parser.add_argument("--backend", type=str, choices=["claude", "codex", "qwen", "gptoss", "ccr"],
-                       help="Code model backend to use (claude, codex, qwen, gptoss, or ccr)")
+    parser.add_argument("--backend", type=str, choices=["claude", "codex", "qwen", "qwen-mini", "gptoss", "ccr"],
+                       help="Code model backend to use (claude, codex, qwen, qwen-mini, gptoss, or ccr)")
     parser.add_argument("--tdd", action="store_true",
                        help="Use TDD mode - generate tests first, then implementation (only works with qwen backend)")
 
@@ -316,8 +375,8 @@ def main():
     
     backend = args.backend or DEFAULT_BACKEND
 
-    # Check if selected CLI is available (skip for qwen, gptoss, and ccr which use their own interfaces)
-    if backend not in ["qwen", "gptoss", "ccr"]:
+    # Check if selected CLI is available (skip for qwen, qwen-mini, gptoss, and ccr which use their own interfaces)
+    if backend not in ["qwen", "qwen-mini", "gptoss", "ccr"]:
         cli_cmd = "codex" if backend == "codex" else "claude"
         try:
             result = subprocess.run([cli_cmd, "--version"], capture_output=True, text=True)
@@ -328,9 +387,9 @@ def main():
             print(f"Error: {cli_cmd} CLI not found. Please ensure '{cli_cmd}' is installed and in PATH")
             sys.exit(1)
 
-    # Warn if TDD mode used with non-qwen backend
-    if args.tdd and backend != "qwen":
-        print(f"Warning: --tdd flag only works with qwen backend, ignoring for {backend}")
+    # Warn if TDD mode used with non-qwen/qwen-mini backend
+    if args.tdd and backend not in ["qwen", "qwen-mini"]:
+        print(f"Warning: --tdd flag only works with qwen/qwen-mini backend, ignoring for {backend}")
 
     agent = CodeSWEAgent(args.prompt_template, args.model, backend, tdd_mode=args.tdd)
 

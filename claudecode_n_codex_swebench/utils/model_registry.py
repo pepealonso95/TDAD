@@ -104,6 +104,29 @@ QWEN_EXPECTED = {
     "qwen3-coder-30b": {"min": 15, "max": 30, "typical": 22},
 }
 
+# Qwen-Mini models (Mini-SWE-Agent + Ollama)
+QWEN_MINI_MODELS: Dict[str, str] = {
+    "qwen-mini": "qwen3-coder:30b",
+    "qwen3-mini": "qwen3-coder:30b",
+    "mini": "qwen3-coder:30b",
+    "latest": "qwen3-coder:30b",
+}
+
+QWEN_MINI_DESCRIPTIONS = {
+    "qwen-mini": "Qwen 30B via Mini-SWE-Agent + Ollama (proven 74% on SWE-bench)",
+    "qwen3-mini": "Alias for qwen-mini",
+    "mini": "Short alias for qwen-mini",
+}
+
+QWEN_MINI_CATEGORIES = {
+    "Qwen-Mini Models": ["qwen-mini", "qwen3-mini"],
+    "Quick Aliases": ["mini", "latest"],
+}
+
+QWEN_MINI_EXPECTED = {
+    "qwen-mini": {"min": 40, "max": 75, "typical": 57},  # Based on mini-swe-agent's 74% benchmark
+}
+
 
 def _resolve(models: Dict[str, str], alias: str, seen=None) -> str:
     if seen is None:
@@ -134,6 +157,8 @@ def get_model_name(alias: str, backend: str = "claude") -> str:
         models = CODEX_MODELS
     elif backend == "qwen":
         models = QWEN_MODELS
+    elif backend == "qwen-mini":
+        models = QWEN_MINI_MODELS
     else:
         models = CLAUDE_MODELS
     if alias in models:
@@ -152,6 +177,10 @@ def list_models(backend: str = "claude") -> str:
         categories = QWEN_CATEGORIES
         descriptions = QWEN_DESCRIPTIONS
         title = "Available Qwen Models"
+    elif backend == "qwen-mini":
+        categories = QWEN_MINI_CATEGORIES
+        descriptions = QWEN_MINI_DESCRIPTIONS
+        title = "Available Qwen-Mini Models"
     else:
         categories = CLAUDE_CATEGORIES
         descriptions = CLAUDE_DESCRIPTIONS
@@ -184,6 +213,9 @@ def get_expected_performance(model: str, backend: str = "claude") -> dict:
     elif backend == "qwen":
         models = QWEN_MODELS
         expectations = QWEN_EXPECTED
+    elif backend == "qwen-mini":
+        models = QWEN_MINI_MODELS
+        expectations = QWEN_MINI_EXPECTED
     else:
         models = CLAUDE_MODELS
         expectations = CLAUDE_EXPECTED

@@ -18,17 +18,18 @@ from datetime import datetime
 from typing import List, Dict, Optional
 from pathlib import Path
 
-from datasets import load_dataset
 from tqdm import tqdm
 import jsonlines
 
 from utils.claude_interface import ClaudeCodeInterface
 from utils.codex_interface import CodexCodeInterface
 from utils.qwen_interface import QwenCodeInterface
+from utils.qwen_mini_interface import QwenMiniInterface
 from utils.prompt_formatter import PromptFormatter
 from utils.patch_extractor import PatchExtractor
 from utils.model_registry import get_model_name
 from utils.mcp_graphrag_interface import GraphRAGMCPInterface
+from code_swe_agent import load_cached_dataset
 
 
 DEFAULT_BACKEND = os.environ.get("CODE_SWE_BACKEND", "claude")
@@ -77,6 +78,8 @@ class GraphRAGCodeSWEAgent:
             self.interface = CodexCodeInterface()
         elif self.backend == "qwen":
             self.interface = QwenCodeInterface()
+        elif self.backend == "qwen-mini":
+            self.interface = QwenMiniInterface()
         else:
             self.backend = "claude"
             self.interface = ClaudeCodeInterface()
@@ -349,6 +352,51 @@ class GraphRAGCodeSWEAgent:
             "test_efficiency_ratio": None
         }
 
+        # qwen-mini handles repository setup internally and has integrated GraphRAG
+        if self.backend == "qwen-mini":
+            try:
+                graphrag_suffix = " + GraphRAG" if self.use_graphrag else ""
+                tdd_info = " (TDD mode)" if self.tdd_mode else ""
+                print(f"Running Qwen-Mini{graphrag_suffix}{tdd_info}...")
+
+                result = self.interface.execute_code_cli(
+                    instance_id=instance["instance_id"],
+                    problem_statement=instance["problem_statement"],
+                    repo=instance["repo"],
+                    base_commit=instance["base_commit"],
+                    hints_text=instance.get("hints_text", ""),
+                    tdd_mode=self.tdd_mode,
+                    graphrag_enabled=self.use_graphrag,
+                    graphrag_mcp=self.mcp if self.use_graphrag else None
+                )
+
+                if result.get("error"):
+                    return {
+                        "instance_id": instance_id,
+                        "model": "qwen-mini-graphrag",
+                        "prediction": "",
+                        "error": result["error"],
+                        "graphrag_metadata": graphrag_metadata
+                    }
+
+                return {
+                    "instance_id": instance_id,
+                    "model": "qwen-mini-graphrag",
+                    "prediction": result.get("prediction", ""),
+                    "graphrag_metadata": graphrag_metadata
+                }
+            except Exception as e:
+                import traceback
+                print(f"Error processing instance: {e}")
+                print(f"Traceback: {traceback.format_exc()}")
+                return {
+                    "instance_id": instance_id,
+                    "model": "qwen-mini-graphrag",
+                    "prediction": "",
+                    "error": str(e),
+                    "graphrag_metadata": graphrag_metadata
+                }
+
         repo_path = self.setup_repository(instance)
         if not repo_path:
             return {
@@ -584,10 +632,7 @@ Make minimal changes to fix the tests while preserving your fix for the original
                       limit: Optional[int] = None) -> List[Dict]:
         """Run on a full dataset."""
         print(f"Loading dataset: {dataset_name}")
-        dataset = load_dataset(dataset_name, split=split)
-
-        if limit:
-            dataset = dataset.select(range(min(limit, len(dataset))))
+        dataset = load_cached_dataset(dataset_name, split=split, limit=limit)
 
         # Clear Neo4j database for fresh experimental run
         if self.use_graphrag and self.mcp:
@@ -630,19 +675,8 @@ Make minimal changes to fix the tests while preserving your fix for the original
 
     def run_on_instance(self, instance_id: str, dataset_name: str = "princeton-nlp/SWE-bench_Lite") -> Dict:
         """Run on a single instance by ID."""
-        dataset = load_dataset(dataset_name, split="test")
-
-        # Find the instance
-        instance = None
-        for item in dataset:
-            if item["instance_id"] == instance_id:
-                instance = item
-                break
-
-        if not instance:
-            raise ValueError(f"Instance {instance_id} not found in dataset")
-
-        return self.process_instance(instance)
+        dataset = load_cached_dataset(dataset_name, split="test", instance_id=instance_id)
+        return self.process_instance(dataset[0])
 
     def _save_predictions(self, prediction: Dict):
         """Append a single prediction to the jsonl file."""
@@ -697,8 +731,8 @@ def main():
                        help="Path to custom prompt template")
     parser.add_argument("--model", type=str,
                        help="Model to use (e.g., opus-4.1, codex-4.2, or any name)")
-    parser.add_argument("--backend", type=str, choices=["claude", "codex", "qwen"],
-                       help="Code model backend to use (claude, codex, or qwen)")
+    parser.add_argument("--backend", type=str, choices=["claude", "codex", "qwen", "qwen-mini"],
+                       help="Code model backend to use (claude, codex, qwen, or qwen-mini)")
     parser.add_argument("--no-graphrag", action="store_true",
                        help="Disable GraphRAG features (use baseline TDD)")
     parser.add_argument("--tdd", action="store_true",

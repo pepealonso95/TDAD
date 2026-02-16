@@ -1,0 +1,3 @@
+[submodule "mini_swe_agent_fork"]
+	path = mini_swe_agent_fork
+	url = https://github.com/pepealonso95/mini-swe-agent.git

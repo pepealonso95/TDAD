@@ -370,11 +370,21 @@ def main():
             file_path = evaluator.predictions_dir / args.file
         
         if file_path.exists():
+            file_path = file_path.resolve()
             # Find in list
             for f, t, c in all_files:
-                if f == file_path:
+                if f.resolve() == file_path:
                     selected_files = [(f, t, c)]
                     break
+            # If not found in list (non-standard filename), add directly
+            if not selected_files:
+                instance_count = 0
+                try:
+                    with jsonlines.open(file_path) as reader:
+                        instance_count = sum(1 for _ in reader)
+                except (jsonlines.Error, OSError):
+                    pass
+                selected_files = [(file_path, datetime.now(), instance_count)]
         else:
             print(f"File not found: {args.file}")
             return
