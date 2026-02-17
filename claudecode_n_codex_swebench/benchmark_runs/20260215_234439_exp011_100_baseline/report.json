@@ -1,0 +1,923 @@
+{
+  "run_name": "exp011_100_baseline",
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "timestamp": "2026-02-16T12:32:44.781099",
+  "instance_count": 100,
+  "instance_ids": [
+    "astropy__astropy-12907",
+    "astropy__astropy-13033",
+    "astropy__astropy-13236",
+    "astropy__astropy-13398",
+    "astropy__astropy-13453",
+    "astropy__astropy-13579",
+    "astropy__astropy-13977",
+    "astropy__astropy-14096",
+    "astropy__astropy-14182",
+    "astropy__astropy-14309",
+    "astropy__astropy-14365",
+    "astropy__astropy-14369",
+    "astropy__astropy-14508",
+    "astropy__astropy-14539",
+    "astropy__astropy-14598",
+    "astropy__astropy-14995",
+    "astropy__astropy-7166",
+    "astropy__astropy-7336",
+    "astropy__astropy-7606",
+    "astropy__astropy-7671",
+    "astropy__astropy-8707",
+    "astropy__astropy-8872",
+    "django__django-10097",
+    "django__django-10554",
+    "django__django-10880",
+    "django__django-10914",
+    "django__django-10973",
+    "django__django-10999",
+    "django__django-11066",
+    "django__django-11087",
+    "django__django-11095",
+    "django__django-11099",
+    "django__django-11119",
+    "django__django-11133",
+    "django__django-11138",
+    "django__django-11141",
+    "django__django-11149",
+    "django__django-11163",
+    "django__django-11179",
+    "django__django-11206",
+    "django__django-11211",
+    "django__django-11239",
+    "django__django-11265",
+    "django__django-11276",
+    "django__django-11292",
+    "django__django-11299",
+    "django__django-11333",
+    "django__django-11400",
+    "django__django-11433",
+    "django__django-11451",
+    "django__django-11477",
+    "django__django-11490",
+    "django__django-11532",
+    "django__django-11551",
+    "django__django-11555",
+    "django__django-11603",
+    "django__django-11728",
+    "django__django-11734",
+    "django__django-11740",
+    "django__django-11749",
+    "django__django-11790",
+    "django__django-11815",
+    "django__django-11820",
+    "django__django-11848",
+    "django__django-11880",
+    "django__django-11885",
+    "django__django-11951",
+    "django__django-11964",
+    "django__django-11999",
+    "django__django-12039",
+    "django__django-12050",
+    "django__django-12125",
+    "django__django-12143",
+    "django__django-12155",
+    "django__django-12193",
+    "django__django-12209",
+    "django__django-12262",
+    "django__django-12273",
+    "django__django-12276",
+    "django__django-12304",
+    "django__django-12308",
+    "django__django-12325",
+    "django__django-12406",
+    "django__django-12419",
+    "django__django-12663",
+    "django__django-12708",
+    "django__django-12713",
+    "django__django-12741",
+    "django__django-12754",
+    "django__django-12774",
+    "django__django-12858",
+    "django__django-12965",
+    "django__django-13012",
+    "django__django-13023",
+    "django__django-13028",
+    "django__django-13033",
+    "django__django-13089",
+    "django__django-13109",
+    "django__django-13112",
+    "django__django-13121"
+  ],
+  "variants": [
+    {
+      "name": "baseline",
+      "predictions_file": "benchmark_runs/20260215_234439_exp011_100_baseline/predictions/baseline.jsonl",
+      "eval_file": "benchmark_runs/20260215_234439_exp011_100_baseline/evaluations/baseline.eval.json",
+      "total_time_s": 45136.36712598801,
+      "generation_count": 42,
+      "empty_count": 58,
+      "resolved_count": 9,
+      "unresolved_count": 33,
+      "eval_ran": true,
+      "instances": [
+        {
+          "instance_id": "astropy__astropy-12907",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 994.4643540382385,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-13033",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 915.2199659347534,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-13236",
+          "patch_chars": 676,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 112.79732394218445,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-13398",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 893.9357719421387,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-13453",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 982.694708108902,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-13579",
+          "patch_chars": 705,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 950.6618947982788,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-13977",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 113.47180700302124,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-14096",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 968.1255569458008,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-14182",
+          "patch_chars": 554,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 89.69851112365723,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-14309",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 67.19795179367065,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-14365",
+          "patch_chars": 481,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 82.95844626426697,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-14369",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 204.60204696655273,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-14508",
+          "patch_chars": 483,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 58.9404399394989,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-14539",
+          "patch_chars": 532,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 57.91656804084778,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-14598",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 150.85482597351074,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-14995",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 847.7284638881683,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-7166",
+          "patch_chars": 815,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 861.9907581806183,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-7336",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 161.98121809959412,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-7606",
+          "patch_chars": 1332,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 87.56884694099426,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-7671",
+          "patch_chars": 729,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 236.77307295799255,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-8707",
+          "patch_chars": 9623,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 248.95155787467957,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-8872",
+          "patch_chars": 1296,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 228.97036004066467,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-10097",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 941.8598551750183,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-10554",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 284.6831707954407,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-10880",
+          "patch_chars": 469,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 94.509840965271,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-10914",
+          "patch_chars": 625,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 47.55527186393738,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-10973",
+          "patch_chars": 2584,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 68.89184284210205,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-10999",
+          "patch_chars": 497,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 125.7127480506897,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11066",
+          "patch_chars": 767,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 46.533695936203,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11087",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 921.6890120506287,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11095",
+          "patch_chars": 69495,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 194.00352478027344,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11099",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 1051.9469809532166,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11119",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 102.36782217025757,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11133",
+          "patch_chars": 20522,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 149.34899997711182,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11138",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 900.0207467079163,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11141",
+          "patch_chars": 606,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 249.34781002998352,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11149",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 955.4954118728638,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11163",
+          "patch_chars": 971,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 83.49060726165771,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11179",
+          "patch_chars": 605,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 209.44344687461853,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11206",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 111.58865094184875,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11211",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 426.7530770301819,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11239",
+          "patch_chars": 470,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 179.23413467407227,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11265",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 946.530011177063,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11276",
+          "patch_chars": 266,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 88.81829977035522,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11292",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 127.88024020195007,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11299",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 1052.655442237854,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11333",
+          "patch_chars": 471,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 162.6562581062317,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11400",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 136.73222613334656,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11433",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 848.1318089962006,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11451",
+          "patch_chars": 744,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 68.23338913917542,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11477",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 785.4301812648773,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11490",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 213.57945108413696,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11532",
+          "patch_chars": 675,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 878.3082959651947,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11551",
+          "patch_chars": 2869,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 1054.9128761291504,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11555",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 982.7178308963776,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11603",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 757.2098670005798,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11728",
+          "patch_chars": 724,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 192.90925002098083,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11734",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 915.3215601444244,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11740",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 982.209123134613,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11749",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 94.88338899612427,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11790",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 939.9551920890808,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11815",
+          "patch_chars": 972,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 70.3059561252594,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11820",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 921.8002061843872,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11848",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 257.2072331905365,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11880",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 164.0950939655304,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11885",
+          "patch_chars": 754,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 255.8226351737976,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11951",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 259.285395860672,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11964",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 1183.9498491287231,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-11999",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 1132.8049006462097,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12039",
+          "patch_chars": 644,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 314.6226348876953,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12050",
+          "patch_chars": 500,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 765.6223528385162,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12125",
+          "patch_chars": 1920,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 1145.4958798885345,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12143",
+          "patch_chars": 715,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 61.9373779296875,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12155",
+          "patch_chars": 719,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 274.1483430862427,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12193",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 325.6352849006653,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12209",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 800.3628668785095,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12262",
+          "patch_chars": 548,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 93.11708211898804,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12273",
+          "patch_chars": 769,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 80.1875011920929,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12276",
+          "patch_chars": 1288,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 210.37717294692993,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12304",
+          "patch_chars": 800,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 50.764593839645386,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12308",
+          "patch_chars": 19811,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 128.8014781475067,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12325",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 623.731027841568,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12406",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 235.72573518753052,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12419",
+          "patch_chars": 453,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 61.30239725112915,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12663",
+          "patch_chars": 545,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 1007.5480477809906,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12708",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 1241.4267239570618,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12713",
+          "patch_chars": 0,
+          "has_error": true,
+          "error_msg": "litellm.APIConnectionError: Ollama_chatException - [Errno 61] Connection refused",
+          "elapsed_s": 2217.4090230464935,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12741",
+          "patch_chars": 0,
+          "has_error": true,
+          "error_msg": "litellm.APIConnectionError: Ollama_chatException - [Errno 61] Connection refused",
+          "elapsed_s": 271.9783170223236,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12754",
+          "patch_chars": 0,
+          "has_error": true,
+          "error_msg": "litellm.APIConnectionError: Ollama_chatException - [Errno 61] Connection refused",
+          "elapsed_s": 274.15549516677856,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12774",
+          "patch_chars": 0,
+          "has_error": true,
+          "error_msg": "litellm.APIConnectionError: Ollama_chatException - [Errno 61] Connection refused",
+          "elapsed_s": 273.77278900146484,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12858",
+          "patch_chars": 0,
+          "has_error": true,
+          "error_msg": "litellm.APIConnectionError: Ollama_chatException - [Errno 61] Connection refused",
+          "elapsed_s": 272.5548541545868,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-12965",
+          "patch_chars": 0,
+          "has_error": true,
+          "error_msg": "litellm.APIConnectionError: Ollama_chatException - [Errno 61] Connection refused",
+          "elapsed_s": 272.7617042064667,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-13012",
+          "patch_chars": 0,
+          "has_error": true,
+          "error_msg": "litellm.APIConnectionError: Ollama_chatException - [Errno 61] Connection refused",
+          "elapsed_s": 272.2972810268402,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-13023",
+          "patch_chars": 0,
+          "has_error": true,
+          "error_msg": "litellm.APIConnectionError: Ollama_chatException - [Errno 61] Connection refused",
+          "elapsed_s": 273.62026381492615,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-13028",
+          "patch_chars": 0,
+          "has_error": true,
+          "error_msg": "litellm.APIConnectionError: Ollama_chatException - [Errno 61] Connection refused",
+          "elapsed_s": 274.6671781539917,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-13033",
+          "patch_chars": 0,
+          "has_error": true,
+          "error_msg": "litellm.APIConnectionError: Ollama_chatException - [Errno 61] Connection refused",
+          "elapsed_s": 278.08013677597046,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-13089",
+          "patch_chars": 0,
+          "has_error": true,
+          "error_msg": "litellm.APIConnectionError: Ollama_chatException - [Errno 61] Connection refused",
+          "elapsed_s": 274.3765208721161,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-13109",
+          "patch_chars": 0,
+          "has_error": true,
+          "error_msg": "litellm.APIConnectionError: Ollama_chatException - [Errno 61] Connection refused",
+          "elapsed_s": 274.280433177948,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-13112",
+          "patch_chars": 0,
+          "has_error": true,
+          "error_msg": "litellm.APIConnectionError: Ollama_chatException - [Errno 61] Connection refused",
+          "elapsed_s": 278.37190985679626,
+          "resolved": null
+        },
+        {
+          "instance_id": "django__django-13121",
+          "patch_chars": 0,
+          "has_error": true,
+          "error_msg": "litellm.APIConnectionError: Ollama_chatException - [Errno 61] Connection refused",
+          "elapsed_s": 270.8661711215973,
+          "resolved": null
+        }
+      ]
+    }
+  ]
+}

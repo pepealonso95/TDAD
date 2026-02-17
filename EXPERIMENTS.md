@@ -2332,3 +2332,192 @@ DOCKER_CONFIG=/tmp/docker-nocreds python3 evaluate_predictions.py \
 🟡 **PARTIAL** - Infrastructure path is validated; patch quality is the current bottleneck
 
 ---
+
+## EXP-010-REPAIR: Quality Enforcement for Qwen-Mini Single-Pass
+
+### Metadata
+- **Date**: 2026-02-15
+- **Configuration**: Qwen-Mini (mini-swe-agent) with three-layer quality enforcement
+- **Model**: Qwen3-Coder:30B (Ollama local)
+- **Sample Size**: 10 instances (9 regenerated + 1 kept from EXP-010)
+- **Parent Experiment**: EXP-010 (baseline had 1/10 resolved, 10% resolution rate)
+
+### Hypothesis
+Adding quality enforcement layers (enhanced prompts, patch validation, quality gate) to qwen-mini will improve patch quality and resolution rate while maintaining single-pass architecture.
+
+### Method
+
+Three quality enforcement layers were already implemented in `utils/qwen_mini_interface.py`:
+1. **Enhanced INSTANCE_TEMPLATE** (lines 54-76): 6 quality requirements + recommended workflow
+2. **`_validate_patch_quality()`** (lines 530-627): Empty diff, file count ≤3, repetitive code (4+ identical lines), placeholder detection, signature change detection
+3. **Quality gate in `_extract_patch()`** (lines 629-647): Calls validation, rejects failures
+
+```bash
+# Single instance test
+python code_swe_agent.py --dataset_name princeton-nlp/SWE-bench_Verified \
+  --instance_id astropy__astropy-12907 --backend qwen-mini
+
+# Batch regeneration of 9 failed instances
+./regenerate_failed_qwen_mini.sh
+
+# Consolidation + Docker evaluation
+./consolidate_predictions.sh
+DOCKER_CONFIG=/tmp/docker-nocreds python3 evaluate_predictions.py \
+  --file predictions/predictions_consolidated_20260215_201134.jsonl \
+  --dataset princeton-nlp/SWE-bench_Verified --max-workers 2 --force
+```
+
+### Results
+
+#### Generation Metrics
+- **Total predictions**: 10/10
+- **Non-empty patches**: 4/10 (40%)
+- **Empty patches**: 6/10 (60%)
+- **Validation rejections**: 2 (astropy-13236 for repetitive_code, astropy-12907 for empty_diff)
+- **Validation accepted**: 2 (astropy-13033, astropy-14182)
+
+#### Resolution Metrics (Docker Evaluation)
+- **Resolved**: 1/10 (10%) — **identical to EXP-010 baseline**
+- **Unresolved**: 3/10
+- **Empty**: 6/10
+- **Resolved instance**: astropy-14309 (same as EXP-010)
+
+#### Comparison with EXP-010 Baseline
+| Metric | EXP-010 Baseline | EXP-010-REPAIR | Change |
+|--------|------------------|----------------|--------|
+| Generation Rate | 50% (5/10) | 40% (4/10) | -10% |
+| Resolution Rate | 10% (1/10) | 10% (1/10) | No change |
+| Regressions | 4/10 (40%) | 0/10 (0%) | -40% (improvement) |
+
+### Analysis
+
+#### What Worked
+- Validation gates correctly caught bad patches (repetitive code in astropy-13236, empty diffs)
+- Zero regressions — quality enforcement prevented bad patches from being submitted
+- Nondeterminism documented: same instance produced different results across runs
+
+#### What Didn't Work
+- Resolution rate unchanged at 10% — model isn't generating correct fixes
+- Generation rate actually dropped from 50% to 40% — quality gates reject more aggressively
+- 3 non-empty patches all failed Docker evaluation
+
+#### Key Findings
+- Quality enforcement prevents regressions but doesn't improve resolution
+- The bottleneck is model capability, not patch quality filtering
+- Single-pass architecture with qwen3-coder:30b has a ceiling of ~10% resolution
+
+### Next Steps
+- [x] Scale to 100 instances to establish baseline → EXP-011
+- [ ] Pivot to GraphRAG approach or stronger model
+
+### Predictions File
+`predictions/predictions_consolidated_20260215_201134.jsonl`
+
+### Evaluation Results
+`evaluation_results/qwen-mini.eval_20260215_223735.json`
+
+### Status
+🔴 **FAILED** - Resolution rate unchanged; pivoting to scaled baseline (EXP-011)
+
+---
+
+## EXP-011: Qwen-Mini Baseline at 100 Instances
+
+### Metadata
+- **Date**: 2026-02-15 to 2026-02-16
+- **Configuration**: Qwen-Mini single-pass baseline (no TDD, no GraphRAG)
+- **Model**: Qwen3-Coder:30B (Ollama local)
+- **Sample Size**: 100 instances (first 100 from SWE-bench_Verified)
+- **Tooling**: New `run_benchmark.py` orchestration script (generation + auto Docker eval + report)
+
+### Hypothesis
+Running at 100-instance scale will establish a statistically meaningful baseline for qwen-mini resolution rate, confirming whether the ~10% rate from 10-instance experiments holds at scale.
+
+### Method
+
+Used the new `run_benchmark.py` multi-variant benchmark runner:
+
+```bash
+DOCKER_CONFIG=/tmp/docker-nocreds /opt/homebrew/Caskroom/miniconda/base/bin/python \
+  run_benchmark.py \
+  --dataset princeton-nlp/SWE-bench_Verified \
+  --limit 100 \
+  --variants baseline \
+  --max-workers 2 \
+  --run-name "exp011_100_baseline"
+```
+
+The script handles the full pipeline: instance loading → generation → Docker evaluation → report generation.
+
+### Results
+
+#### Generation Metrics
+- **Total instances**: 100
+- **Non-empty patches**: 42/100 (42%)
+- **Empty patches**: 58/100 (58%)
+- **Total generation time**: 752 min (12.5 hours)
+- **Average time per instance**: 7.5 min
+
+#### Resolution Metrics (Docker Evaluation)
+- **Resolved**: 9/100 (9%)
+- **Unresolved**: 33/100 (33%)
+- **Empty patches (not evaluated)**: 58/100
+- **Resolution among generated patches**: 9/42 (21%)
+
+#### Resolved Instances
+| # | Instance ID | Patch Size |
+|---|-------------|-----------|
+| 1 | astropy__astropy-14539 | 532 chars |
+| 2 | django__django-10914 | 625 chars |
+| 3 | django__django-10973 | 2584 chars |
+| 4 | django__django-11066 | 767 chars |
+| 5 | django__django-11163 | 971 chars |
+| 6 | django__django-12050 | 500 chars |
+| 7 | django__django-12143 | 715 chars |
+| 8 | django__django-12419 | 453 chars |
+| 9 | django__django-12663 | 545 chars |
+
+#### Scale Comparison
+| Metric | EXP-010 (n=10) | EXP-011 (n=100) | Consistent? |
+|--------|---------------|-----------------|-------------|
+| Generation Rate | 50% | 42% | ~Yes (within variance) |
+| Resolution Rate | 10% | 9% | Yes |
+| Res. among generated | 20% | 21% | Yes |
+
+### Analysis
+
+#### Key Findings
+1. **9% resolution rate confirmed at scale** — the 10% from small samples was not a fluke; the true rate is ~9-10%
+2. **42% generation rate** — more than half of instances produce no patch at all
+3. **21% resolution among generated patches** — when the model does produce a patch, roughly 1 in 5 actually resolves the issue
+4. **Django instances resolve more often** — 8 of 9 resolved instances are Django (vs 1 astropy), likely because Django has more straightforward bug patterns
+5. **Long-running instances tend to fail** — instances taking >600s usually produce empty patches (model gets stuck in loops)
+
+#### Implications for Thesis
+- This establishes the **qwen-mini single-pass baseline** at n=100
+- 9% resolution is the number to beat with TDD prompts, GraphRAG, and other interventions
+- The generation rate (42%) is a separate axis — GraphRAG may improve this significantly
+- Regression rate needs separate analysis from eval JSON (TODO)
+
+### Infrastructure Created
+- `run_benchmark.py` — multi-variant benchmark runner with auto-evaluation
+- Fixed `evaluate_predictions.py` `--file` flag to work with non-standard filenames
+
+### Run Directory
+`benchmark_runs/20260215_234439_exp011_100_baseline/`
+- `predictions/baseline.jsonl` — 100 predictions
+- `evaluations/baseline.eval.json` — Docker evaluation results
+- `report.md` — human-readable report
+- `report.json` — machine-readable report
+- `progress.log` — per-instance timing log
+
+### Next Steps
+- [ ] Analyze regression rate from eval JSON (PASS→FAIL count)
+- [ ] Run EXP-012: TDD variant comparison (`--variants baseline tdd`)
+- [ ] Run EXP-013: GraphRAG variant comparison (`--variants baseline graphrag`)
+- [ ] Consider using Claude as backend for higher resolution rate comparison
+
+### Status
+✅ **COMPLETE** - Baseline established at 9% resolution (9/100)
+
+---
