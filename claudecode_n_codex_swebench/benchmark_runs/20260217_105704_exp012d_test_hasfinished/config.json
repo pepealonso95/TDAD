@@ -1,0 +1,19 @@
+{
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "variants": [
+    {
+      "name": "baseline",
+      "backend": "qwen-mini",
+      "tdd_mode": false,
+      "use_graphrag": false
+    }
+  ],
+  "limit": null,
+  "instance_ids": [
+    "astropy__astropy-12907",
+    "astropy__astropy-13033"
+  ],
+  "skip_eval": true,
+  "max_workers": 1,
+  "run_name": "exp012d_test_hasfinished"
+}

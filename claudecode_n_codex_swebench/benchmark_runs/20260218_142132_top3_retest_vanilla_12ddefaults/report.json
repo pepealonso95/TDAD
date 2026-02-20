@@ -1,0 +1,70 @@
+{
+  "run_name": "top3_retest_vanilla_12ddefaults",
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "timestamp": "2026-02-18T14:32:03.436039",
+  "instance_count": 3,
+  "instance_ids": [
+    "astropy__astropy-13236",
+    "astropy__astropy-13453",
+    "astropy__astropy-14309"
+  ],
+  "variants": [
+    {
+      "name": "vanilla",
+      "predictions_file": "benchmark_runs/20260218_142132_top3_retest_vanilla_12ddefaults/predictions/vanilla.jsonl",
+      "eval_file": "benchmark_runs/20260218_142132_top3_retest_vanilla_12ddefaults/evaluations/vanilla.eval.json",
+      "total_time_s": 323.60656785964966,
+      "generation_count": 3,
+      "empty_count": 0,
+      "resolved_count": 2,
+      "unresolved_count": 1,
+      "eval_ran": true,
+      "loop_abort_count": 2,
+      "avg_attempts_used": 1.0,
+      "avg_f2p_pass_rate": 0.0,
+      "avg_p2p_smoke_failures": 0.0,
+      "clean_resolution_count": 0,
+      "instances": [
+        {
+          "instance_id": "astropy__astropy-13236",
+          "patch_chars": 848,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 147.1847062110901,
+          "resolved": null,
+          "attempts_used": 1,
+          "loop_abort_reason": "no_diff_streak:17",
+          "f2p_pass_rate": null,
+          "p2p_smoke_failures": null,
+          "clean_resolution": null
+        },
+        {
+          "instance_id": "astropy__astropy-13453",
+          "patch_chars": 608,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 108.56174612045288,
+          "resolved": null,
+          "attempts_used": 1,
+          "loop_abort_reason": "",
+          "f2p_pass_rate": null,
+          "p2p_smoke_failures": null,
+          "clean_resolution": null
+        },
+        {
+          "instance_id": "astropy__astropy-14309",
+          "patch_chars": 585,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 67.85850310325623,
+          "resolved": null,
+          "attempts_used": 1,
+          "loop_abort_reason": "no_diff_streak:8",
+          "f2p_pass_rate": null,
+          "p2p_smoke_failures": null,
+          "clean_resolution": null
+        }
+      ]
+    }
+  ]
+}

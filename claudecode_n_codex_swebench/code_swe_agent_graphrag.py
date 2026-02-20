@@ -56,7 +56,12 @@ class GraphRAGCodeSWEAgent:
         tdd_mode: bool = False,
         impact_threshold: float = 0.3,
         max_impacted_tests: int = 50,
-        mcp_server_url: str = "http://localhost:8080"
+        mcp_server_url: str = "http://localhost:8080",
+        max_attempts: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        loop_policy: Optional[str] = None,
+        max_fix_iterations: Optional[int] = None,
+        patch_compile_gate: Optional[bool] = None,
     ):
         """
         Initialize GraphRAG-enhanced agent.
@@ -105,6 +110,23 @@ class GraphRAGCodeSWEAgent:
         self.max_impacted_tests = max_impacted_tests
         self.mcp: Optional[GraphRAGMCPInterface] = None
         self.graph_cache: Dict[str, bool] = {}  # Track built graphs by repo
+        self.max_attempts = max_attempts
+        self.step_limit = step_limit
+        self.loop_policy = loop_policy
+        self.max_fix_iterations = max_fix_iterations
+        self.patch_compile_gate = patch_compile_gate
+
+        if self.backend == "qwen-mini":
+            if self.max_attempts is not None:
+                self.interface.max_attempts = self.max_attempts
+            if self.step_limit is not None:
+                self.interface.step_limit = self.step_limit
+            if self.loop_policy is not None:
+                self.interface.loop_policy = self.loop_policy
+            if self.max_fix_iterations is not None:
+                self.interface.max_fix_iterations = self.max_fix_iterations
+            if self.patch_compile_gate is not None:
+                self.interface.patch_compile_gate = self.patch_compile_gate
 
         # Initialize MCP interface if using GraphRAG
         if self.use_graphrag:
@@ -358,6 +380,8 @@ class GraphRAGCodeSWEAgent:
                 graphrag_suffix = " + GraphRAG" if self.use_graphrag else ""
                 tdd_info = " (TDD mode)" if self.tdd_mode else ""
                 print(f"Running Qwen-Mini{graphrag_suffix}{tdd_info}...")
+                fail_to_pass_tests = self._parse_test_list(instance.get("FAIL_TO_PASS"))
+                pass_to_pass_tests = self._parse_test_list(instance.get("PASS_TO_PASS"))
 
                 result = self.interface.execute_code_cli(
                     instance_id=instance["instance_id"],
@@ -367,7 +391,9 @@ class GraphRAGCodeSWEAgent:
                     hints_text=instance.get("hints_text", ""),
                     tdd_mode=self.tdd_mode,
                     graphrag_enabled=self.use_graphrag,
-                    graphrag_mcp=self.mcp if self.use_graphrag else None
+                    graphrag_mcp=self.mcp if self.use_graphrag else None,
+                    fail_to_pass_tests=fail_to_pass_tests,
+                    pass_to_pass_tests=pass_to_pass_tests,
                 )
 
                 if result.get("error"):
@@ -383,7 +409,19 @@ class GraphRAGCodeSWEAgent:
                     "instance_id": instance_id,
                     "model": "qwen-mini-graphrag",
                     "prediction": result.get("prediction", ""),
-                    "graphrag_metadata": graphrag_metadata
+                    "graphrag_metadata": {
+                        **graphrag_metadata,
+                        **result.get("graphrag_metadata", {}),
+                    },
+                    "attempts_used": result.get("attempts_used"),
+                    "loop_abort_reason": result.get("loop_abort_reason"),
+                    "f2p_pass_rate": result.get("f2p_pass_rate"),
+                    "p2p_smoke_failures": result.get("p2p_smoke_failures"),
+                    "clean_resolution": result.get("clean_resolution"),
+                    "patch_gate_valid": result.get("patch_gate_valid"),
+                    "patch_gate_reason": result.get("patch_gate_reason"),
+                    "patch_gate_severity": result.get("patch_gate_severity"),
+                    "attempt_summaries": result.get("attempt_summaries", []),
                 }
             except Exception as e:
                 import traceback
@@ -570,6 +608,24 @@ class GraphRAGCodeSWEAgent:
                 "graphrag_metadata": graphrag_metadata
             }, f, indent=2)
 
+    @staticmethod
+    def _parse_test_list(raw_value) -> List[str]:
+        if raw_value is None:
+            return []
+        if isinstance(raw_value, list):
+            return [str(x) for x in raw_value if str(x).strip()]
+        if isinstance(raw_value, str):
+            raw_value = raw_value.strip()
+            if not raw_value:
+                return []
+            try:
+                parsed = json.loads(raw_value)
+                if isinstance(parsed, list):
+                    return [str(x) for x in parsed if str(x).strip()]
+            except json.JSONDecodeError:
+                return []
+        return []
+
     def _format_test_failures_for_agent(
         self,
         failed_tests: List[Dict],
@@ -743,6 +799,8 @@ def main():
                        help="Maximum number of impacted tests to identify")
     parser.add_argument("--mcp-server-url", type=str, default="http://localhost:8080",
                        help="MCP server URL (if already running externally)")
+    parser.add_argument("--patch-compile-gate", type=str, choices=["on", "off"],
+                       help="Enable/disable compile gate before accepting qwen-mini patches")
 
     args = parser.parse_args()
 
@@ -767,7 +825,8 @@ def main():
         tdd_mode=args.tdd,
         impact_threshold=args.impact_threshold,
         max_impacted_tests=args.max_impacted_tests,
-        mcp_server_url=args.mcp_server_url
+        mcp_server_url=args.mcp_server_url,
+        patch_compile_gate=(None if args.patch_compile_gate is None else args.patch_compile_gate == "on"),
     )
 
     try:

@@ -1,0 +1,23 @@
+{
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "variants": [
+    {
+      "name": "vanilla",
+      "backend": "qwen-mini",
+      "tdd_mode": false,
+      "use_graphrag": false
+    }
+  ],
+  "limit": null,
+  "instance_ids": [
+    "django__django-11728"
+  ],
+  "skip_eval": false,
+  "max_workers": 1,
+  "run_name": "current_vanilla_100_step30_compile_submit_stop_linecap200_single_11728",
+  "max_attempts": 3,
+  "step_limit": 30,
+  "loop_policy": "strict",
+  "max_fix_iterations": 0,
+  "patch_compile_gate": "on"
+}

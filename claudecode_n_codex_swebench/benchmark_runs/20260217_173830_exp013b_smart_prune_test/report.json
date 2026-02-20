@@ -1,0 +1,41 @@
+{
+  "run_name": "exp013b_smart_prune_test",
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "timestamp": "2026-02-17T17:58:48.500874",
+  "instance_count": 2,
+  "instance_ids": [
+    "astropy__astropy-13236",
+    "astropy__astropy-14182"
+  ],
+  "variants": [
+    {
+      "name": "baseline",
+      "predictions_file": "benchmark_runs/20260217_173830_exp013b_smart_prune_test/predictions/baseline.jsonl",
+      "eval_file": "benchmark_runs/20260217_173830_exp013b_smart_prune_test/evaluations/baseline.eval.json",
+      "total_time_s": 950.4010620117188,
+      "generation_count": 2,
+      "empty_count": 0,
+      "resolved_count": 0,
+      "unresolved_count": 2,
+      "eval_ran": true,
+      "instances": [
+        {
+          "instance_id": "astropy__astropy-13236",
+          "patch_chars": 1041,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 181.7862741947174,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-14182",
+          "patch_chars": 631,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 768.6137766838074,
+          "resolved": null
+        }
+      ]
+    }
+  ]
+}

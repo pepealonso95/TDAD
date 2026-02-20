@@ -1,0 +1,45 @@
+{
+  "run_name": "current_vanilla_100_step30_compile_submit_stop_linecap200_single_11728",
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "timestamp": "2026-02-20T09:55:44.397431",
+  "instance_count": 1,
+  "instance_ids": [
+    "django__django-11728"
+  ],
+  "variants": [
+    {
+      "name": "vanilla",
+      "predictions_file": "benchmark_runs/20260220_094333_current_vanilla_100_step30_compile_submit_stop_linecap200_single_11728/predictions/vanilla.jsonl",
+      "eval_file": "benchmark_runs/20260220_094333_current_vanilla_100_step30_compile_submit_stop_linecap200_single_11728/evaluations/vanilla.eval.json",
+      "total_time_s": 679.4563870429993,
+      "generation_count": 1,
+      "empty_count": 0,
+      "resolved_count": 0,
+      "unresolved_count": 1,
+      "eval_ran": true,
+      "loop_abort_count": 0,
+      "avg_attempts_used": 2.0,
+      "avg_f2p_pass_rate": 0.0,
+      "avg_p2p_smoke_failures": 0.0,
+      "clean_resolution_count": 0,
+      "instances": [
+        {
+          "instance_id": "django__django-11728",
+          "patch_chars": 724,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 679.455677986145,
+          "resolved": null,
+          "attempts_used": 2,
+          "loop_abort_reason": "",
+          "f2p_pass_rate": null,
+          "p2p_smoke_failures": null,
+          "clean_resolution": null,
+          "patch_gate_valid": true,
+          "patch_gate_reason": "ok",
+          "patch_gate_severity": "info"
+        }
+      ]
+    }
+  ]
+}

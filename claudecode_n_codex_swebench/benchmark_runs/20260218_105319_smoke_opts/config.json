@@ -1,0 +1,34 @@
+{
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "variants": [
+    {
+      "name": "vanilla",
+      "backend": "qwen-mini",
+      "tdd_mode": false,
+      "use_graphrag": false
+    },
+    {
+      "name": "tdd_loop",
+      "backend": "qwen-mini",
+      "tdd_mode": true,
+      "use_graphrag": false
+    },
+    {
+      "name": "graphrag_tdd",
+      "backend": "qwen-mini",
+      "tdd_mode": true,
+      "use_graphrag": true
+    }
+  ],
+  "limit": null,
+  "instance_ids": [
+    "does_not_exist"
+  ],
+  "skip_eval": true,
+  "max_workers": 2,
+  "run_name": "smoke_opts",
+  "max_attempts": 3,
+  "step_limit": 45,
+  "loop_policy": "strict",
+  "max_fix_iterations": 2
+}

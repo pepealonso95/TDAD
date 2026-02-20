@@ -287,15 +287,16 @@ class TestRunner:
             passed = sum(1 for t in test_results if t["status"] == "passed")
             failed = sum(1 for t in test_results if t["status"] == "failed")
             skipped = sum(1 for t in test_results if t["status"] == "skipped")
-
-            # TODO: Calculate regressions by comparing with previous results
+            # In this pipeline, tests passed into run_tests are expected to pass after the patch.
+            # A failing executed test is treated as a regression signal for iteration scoring.
+            regressions = failed
 
             return {
                 "success": result.returncode == 0,
                 "passed": passed,
                 "failed": failed,
                 "skipped": skipped,
-                "regressions": 0,  # TODO: implement
+                "regressions": regressions,
                 "test_results": test_results,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
@@ -308,9 +309,9 @@ class TestRunner:
             return {
                 "success": False,
                 "passed": 0,
-                "failed": 0,
+                "failed": len(tests or []),
                 "skipped": 0,
-                "regressions": 0,
+                "regressions": len(tests or []),
                 "test_results": [],
                 "error": "Timeout"
             }
@@ -319,9 +320,9 @@ class TestRunner:
             return {
                 "success": False,
                 "passed": 0,
-                "failed": 0,
+                "failed": len(tests or []),
                 "skipped": 0,
-                "regressions": 0,
+                "regressions": len(tests or []),
                 "test_results": [],
                 "error": str(e)
             }

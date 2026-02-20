@@ -2,24 +2,24 @@
 """
 Multi-variant benchmark runner with auto-evaluation and report generation.
 
-Runs the same SWE-bench instances across qwen-mini variants (baseline, TDD,
-GraphRAG), automatically evaluates with Docker, and produces a comparison
+Runs the same SWE-bench instances across qwen-mini variants (vanilla, tdd_loop,
+graphrag_tdd), automatically evaluates with Docker, and produces a comparison
 report.
 
 Usage:
-    # Baseline + TDD on 10 instances
+    # Vanilla + TDD-loop on 10 instances
     python run_benchmark.py --dataset princeton-nlp/SWE-bench_Verified \\
-        --limit 10 --variants baseline tdd
+        --limit 10 --variants vanilla tdd_loop
 
     # Specific instance IDs, skip Docker eval
     python run_benchmark.py --dataset princeton-nlp/SWE-bench_Verified \\
         --instance-ids astropy__astropy-12907 astropy__astropy-13033 \\
-        --variants baseline tdd graphrag --skip-eval
+        --variants vanilla tdd_loop graphrag_tdd --skip-eval
 
     # Instance IDs from file
     python run_benchmark.py --dataset princeton-nlp/SWE-bench_Verified \\
         --instance-ids-file failed_instances.txt \\
-        --variants baseline --run-name "batch_rerun"
+        --variants vanilla --run-name "batch_rerun"
 """
 
 import argparse
@@ -52,9 +52,13 @@ class VariantConfig:
 
 
 VARIANT_REGISTRY: dict[str, VariantConfig] = {
-    "baseline": VariantConfig("baseline"),
-    "tdd": VariantConfig("tdd", tdd_mode=True),
-    "graphrag": VariantConfig("graphrag", use_graphrag=True),
+    "vanilla": VariantConfig("vanilla"),
+    "tdd_loop": VariantConfig("tdd_loop", tdd_mode=True),
+    "graphrag_tdd": VariantConfig("graphrag_tdd", tdd_mode=True, use_graphrag=True),
+    # Backward-compatible aliases
+    "baseline": VariantConfig("vanilla"),
+    "tdd": VariantConfig("tdd_loop", tdd_mode=True),
+    "graphrag": VariantConfig("graphrag_tdd", tdd_mode=True, use_graphrag=True),
 }
 
 
@@ -70,6 +74,14 @@ class InstanceResult:
     error_msg: str = ""
     elapsed_s: float = 0.0
     resolved: Optional[bool] = None  # filled after Docker eval
+    attempts_used: Optional[int] = None
+    loop_abort_reason: str = ""
+    f2p_pass_rate: Optional[float] = None
+    p2p_smoke_failures: Optional[int] = None
+    clean_resolution: Optional[bool] = None
+    patch_gate_valid: Optional[bool] = None
+    patch_gate_reason: str = ""
+    patch_gate_severity: str = ""
 
 
 @dataclass
@@ -100,6 +112,11 @@ class BenchmarkRunner:
         skip_eval: bool = False,
         max_workers: int = 2,
         run_name: str = "",
+        max_attempts: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        loop_policy: str = "strict",
+        max_fix_iterations: int = 2,
+        patch_compile_gate: str = "on",
     ):
         self.dataset = dataset
         self.variants = variants
@@ -108,6 +125,11 @@ class BenchmarkRunner:
         self.skip_eval = skip_eval
         self.max_workers = max_workers
         self.run_name = run_name
+        self.max_attempts = max_attempts
+        self.step_limit = step_limit
+        self.loop_policy = loop_policy
+        self.max_fix_iterations = max_fix_iterations
+        self.patch_compile_gate = patch_compile_gate
 
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         suffix = f"_{run_name}" if run_name else ""
@@ -160,9 +182,25 @@ class BenchmarkRunner:
 
         if config.use_graphrag:
             from code_swe_agent_graphrag import GraphRAGCodeSWEAgent
-            agent = GraphRAGCodeSWEAgent(backend=config.backend, tdd_mode=config.tdd_mode)
+            agent = GraphRAGCodeSWEAgent(
+                backend=config.backend,
+                tdd_mode=config.tdd_mode,
+                max_attempts=self.max_attempts,
+                step_limit=self.step_limit,
+                loop_policy=self.loop_policy,
+                max_fix_iterations=self.max_fix_iterations,
+                patch_compile_gate=(self.patch_compile_gate == "on"),
+            )
         else:
-            agent = CodeSWEAgent(backend=config.backend, tdd_mode=config.tdd_mode)
+            agent = CodeSWEAgent(
+                backend=config.backend,
+                tdd_mode=config.tdd_mode,
+                max_attempts=self.max_attempts,
+                step_limit=self.step_limit,
+                loop_policy=self.loop_policy,
+                max_fix_iterations=self.max_fix_iterations,
+                patch_compile_gate=(self.patch_compile_gate == "on"),
+            )
 
         # Initialize prediction file in the run directory
         pred_file = self.run_dir / "predictions" / f"{config.name}.jsonl"
@@ -204,6 +242,14 @@ class BenchmarkRunner:
                 has_error=has_error,
                 error_msg=prediction.get("error", ""),
                 elapsed_s=elapsed,
+                attempts_used=prediction.get("attempts_used"),
+                loop_abort_reason=prediction.get("loop_abort_reason", "") or "",
+                f2p_pass_rate=prediction.get("f2p_pass_rate"),
+                p2p_smoke_failures=prediction.get("p2p_smoke_failures"),
+                clean_resolution=prediction.get("clean_resolution"),
+                patch_gate_valid=prediction.get("patch_gate_valid"),
+                patch_gate_reason=prediction.get("patch_gate_reason", "") or "",
+                patch_gate_severity=prediction.get("patch_gate_severity", "") or "",
             )
             vr.instances.append(ir)
 
@@ -313,6 +359,8 @@ class BenchmarkRunner:
             for ir in vr.instances:
                 inst_info = instances_data.get(ir.instance_id, {})
                 ir.resolved = inst_info.get("resolved")
+                if ir.resolved is True and ir.p2p_smoke_failures is not None:
+                    ir.clean_resolution = ir.p2p_smoke_failures == 0
 
             self._log(
                 f"  Resolved: {vr.resolved_count}/{len(vr.instances)} "
@@ -355,6 +403,25 @@ class BenchmarkRunner:
                 res_str = "not evaluated"
             time_str = f"{vr.total_time_s / 60:.0f}m"
             lines.append(f"| {vr.name} | {gen_str} | {res_str} | {time_str} |")
+        lines.append("")
+
+        # Loop/test diagnostics
+        lines.append("## Loop and Test Diagnostics")
+        lines.append("")
+        lines.append("| Variant | Avg Attempts | Loop Aborts | Avg F2P Pass Rate | Avg P2P Smoke Fails | Clean Candidates |")
+        lines.append("|---------|--------------|-------------|-------------------|---------------------|------------------|")
+        for vr in self.results:
+            attempts_vals = [ir.attempts_used for ir in vr.instances if ir.attempts_used is not None]
+            avg_attempts = (sum(attempts_vals) / len(attempts_vals)) if attempts_vals else 0.0
+            loop_aborts = sum(1 for ir in vr.instances if ir.loop_abort_reason)
+            f2p_vals = [ir.f2p_pass_rate for ir in vr.instances if ir.f2p_pass_rate is not None]
+            avg_f2p = (sum(f2p_vals) / len(f2p_vals)) if f2p_vals else 0.0
+            p2p_vals = [ir.p2p_smoke_failures for ir in vr.instances if ir.p2p_smoke_failures is not None]
+            avg_p2p = (sum(p2p_vals) / len(p2p_vals)) if p2p_vals else 0.0
+            clean_candidates = sum(1 for ir in vr.instances if ir.clean_resolution is True)
+            lines.append(
+                f"| {vr.name} | {avg_attempts:.2f} | {loop_aborts} | {avg_f2p:.2f} | {avg_p2p:.2f} | {clean_candidates} |"
+            )
         lines.append("")
 
         # Per-instance comparison
@@ -441,6 +508,20 @@ class BenchmarkRunner:
                 "resolved_count": vr.resolved_count,
                 "unresolved_count": vr.unresolved_count,
                 "eval_ran": vr.eval_ran,
+                "loop_abort_count": sum(1 for ir in vr.instances if ir.loop_abort_reason),
+                "avg_attempts_used": (
+                    sum(ir.attempts_used for ir in vr.instances if ir.attempts_used is not None)
+                    / max(1, len([ir for ir in vr.instances if ir.attempts_used is not None]))
+                ),
+                "avg_f2p_pass_rate": (
+                    sum(ir.f2p_pass_rate for ir in vr.instances if ir.f2p_pass_rate is not None)
+                    / max(1, len([ir for ir in vr.instances if ir.f2p_pass_rate is not None]))
+                ),
+                "avg_p2p_smoke_failures": (
+                    sum(ir.p2p_smoke_failures for ir in vr.instances if ir.p2p_smoke_failures is not None)
+                    / max(1, len([ir for ir in vr.instances if ir.p2p_smoke_failures is not None]))
+                ),
+                "clean_resolution_count": sum(1 for ir in vr.instances if ir.clean_resolution is True),
                 "instances": [asdict(ir) for ir in vr.instances],
             }
             report_data["variants"].append(vr_dict)
@@ -469,6 +550,11 @@ class BenchmarkRunner:
             "skip_eval": self.skip_eval,
             "max_workers": self.max_workers,
             "run_name": self.run_name,
+            "max_attempts": self.max_attempts,
+            "step_limit": self.step_limit,
+            "loop_policy": self.loop_policy,
+            "max_fix_iterations": self.max_fix_iterations,
+            "patch_compile_gate": self.patch_compile_gate,
         }
         (self.run_dir / "config.json").write_text(json.dumps(config, indent=2))
 
@@ -524,9 +610,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python run_benchmark.py --dataset princeton-nlp/SWE-bench_Verified --limit 10 --variants baseline tdd
-  python run_benchmark.py --dataset princeton-nlp/SWE-bench_Verified --instance-ids astropy__astropy-12907 --variants baseline tdd --skip-eval
-  python run_benchmark.py --dataset princeton-nlp/SWE-bench_Verified --instance-ids-file failed.txt --variants baseline
+  python run_benchmark.py --dataset princeton-nlp/SWE-bench_Verified --limit 10 --variants vanilla tdd_loop
+  python run_benchmark.py --dataset princeton-nlp/SWE-bench_Verified --instance-ids astropy__astropy-12907 --variants vanilla tdd_loop --skip-eval
+  python run_benchmark.py --dataset princeton-nlp/SWE-bench_Verified --instance-ids-file failed.txt --variants graphrag_tdd
 """,
     )
 
@@ -550,8 +636,8 @@ Examples:
     parser.add_argument(
         "--variants", nargs="+",
         choices=list(VARIANT_REGISTRY.keys()),
-        default=["baseline"],
-        help="Variants to run (default: baseline)",
+        default=["vanilla"],
+        help="Variants to run (default: vanilla)",
     )
     parser.add_argument(
         "--skip-eval", action="store_true",
@@ -564,6 +650,26 @@ Examples:
     parser.add_argument(
         "--run-name", type=str, default="",
         help="Human-readable label for this run",
+    )
+    parser.add_argument(
+        "--max-attempts", type=int, default=3,
+        help="Max attempts per instance for qwen-mini (default: 3)",
+    )
+    parser.add_argument(
+        "--step-limit", type=int, default=30,
+        help="Max steps per attempt for qwen-mini (default: 30)",
+    )
+    parser.add_argument(
+        "--loop-policy", type=str, choices=["off", "warn", "strict"], default="strict",
+        help="Loop control policy for qwen-mini (default: strict)",
+    )
+    parser.add_argument(
+        "--max-fix-iterations", type=int, default=0,
+        help="Max iterative test-fix rounds for tdd_loop/graphrag_tdd (default: 0, EXP-012d-like)",
+    )
+    parser.add_argument(
+        "--patch-compile-gate", type=str, choices=["on", "off"], default="on",
+        help="Compile changed Python files before accepting qwen-mini patches (default: on)",
     )
 
     args = parser.parse_args()
@@ -595,6 +701,11 @@ Examples:
         skip_eval=args.skip_eval,
         max_workers=args.max_workers,
         run_name=args.run_name,
+        max_attempts=args.max_attempts,
+        step_limit=args.step_limit,
+        loop_policy=args.loop_policy,
+        max_fix_iterations=args.max_fix_iterations,
+        patch_compile_gate=args.patch_compile_gate,
     )
     runner.run()
 

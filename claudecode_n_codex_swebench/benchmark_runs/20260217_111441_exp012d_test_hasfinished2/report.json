@@ -1,0 +1,41 @@
+{
+  "run_name": "exp012d_test_hasfinished2",
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "timestamp": "2026-02-17T11:19:35.344991",
+  "instance_count": 2,
+  "instance_ids": [
+    "astropy__astropy-12907",
+    "astropy__astropy-13033"
+  ],
+  "variants": [
+    {
+      "name": "baseline",
+      "predictions_file": "benchmark_runs/20260217_111441_exp012d_test_hasfinished2/predictions/baseline.jsonl",
+      "eval_file": "",
+      "total_time_s": 293.56729197502136,
+      "generation_count": 1,
+      "empty_count": 1,
+      "resolved_count": 0,
+      "unresolved_count": 0,
+      "eval_ran": false,
+      "instances": [
+        {
+          "instance_id": "astropy__astropy-12907",
+          "patch_chars": 960,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 191.68009424209595,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-13033",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 101.88646030426025,
+          "resolved": null
+        }
+      ]
+    }
+  ]
+}

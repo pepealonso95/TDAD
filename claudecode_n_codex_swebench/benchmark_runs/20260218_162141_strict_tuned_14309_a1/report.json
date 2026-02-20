@@ -1,0 +1,45 @@
+{
+  "run_name": "strict_tuned_14309_a1",
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "timestamp": "2026-02-18T16:24:16.940582",
+  "instance_count": 1,
+  "instance_ids": [
+    "astropy__astropy-14309"
+  ],
+  "variants": [
+    {
+      "name": "vanilla",
+      "predictions_file": "benchmark_runs/20260218_162141_strict_tuned_14309_a1/predictions/vanilla.jsonl",
+      "eval_file": "benchmark_runs/20260218_162141_strict_tuned_14309_a1/evaluations/vanilla.eval.json",
+      "total_time_s": 69.7691216468811,
+      "generation_count": 1,
+      "empty_count": 0,
+      "resolved_count": 1,
+      "unresolved_count": 0,
+      "eval_ran": true,
+      "loop_abort_count": 1,
+      "avg_attempts_used": 1.0,
+      "avg_f2p_pass_rate": 0.0,
+      "avg_p2p_smoke_failures": 0.0,
+      "clean_resolution_count": 0,
+      "instances": [
+        {
+          "instance_id": "astropy__astropy-14309",
+          "patch_chars": 585,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 69.76881313323975,
+          "resolved": null,
+          "attempts_used": 1,
+          "loop_abort_reason": "no_diff_streak:8",
+          "f2p_pass_rate": null,
+          "p2p_smoke_failures": null,
+          "clean_resolution": null,
+          "patch_gate_valid": true,
+          "patch_gate_reason": "ok",
+          "patch_gate_severity": "info"
+        }
+      ]
+    }
+  ]
+}

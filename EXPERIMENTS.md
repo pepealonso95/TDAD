@@ -6,6 +6,282 @@
 
 ---
 
+## EXP-014: Vanilla Tuning Log (2026-02-18 to 2026-02-19)
+
+### Objective
+Keep a precise log of every vanilla-side tweak (code + runtime flags), why it was changed, and what result it produced.
+
+### Code/Runner Changes Applied
+
+| Area | File | Change | Reasoning |
+|------|------|--------|-----------|
+| Variant naming | `claudecode_n_codex_swebench/run_benchmark.py` | Renamed primary arm to `vanilla` (kept aliases: `baseline`, `tdd`, `graphrag`) | Match experiment framing and avoid naming drift. |
+| Retry/attempt controls | `claudecode_n_codex_swebench/run_benchmark.py`, `claudecode_n_codex_swebench/utils/qwen_mini_interface.py` | Exposed/used `max_attempts`, `step_limit`, `loop_policy` via CLI and interface | Make retry behavior explicit and reproducible between runs. |
+| Compile gate | `claudecode_n_codex_swebench/utils/qwen_mini_interface.py` | Added Python compile validation for changed `.py` files against `HEAD` baseline | Reject syntax-broken outputs while avoiding false positives from preexisting baseline incompatibility. |
+| Compile self-repair | `claudecode_n_codex_swebench/utils/qwen_mini_interface.py` | Added compile-fix rounds (`max_compile_fix_iterations=2`) before attempt ends | Let the agent repair syntax failures in-place instead of wasting an attempt. |
+| Early stop policy | `claudecode_n_codex_swebench/utils/qwen_mini_interface.py` | Stop retries if attempt is `Submitted` + non-empty patch + compile-gate valid | Reduce wasted retries when a usable patch already exists. |
+| Default step budget | `claudecode_n_codex_swebench/run_benchmark.py` | `--step-limit` default changed to `30` | Reduce long wandering trajectories seen in prior runs. |
+| Patch size safety gate | `claudecode_n_codex_swebench/utils/qwen_mini_interface.py` | Added `max_changed_lines=200`; reject with `too_many_changed_lines:*` | Prevent extreme over-edits/catastrophic rewrites from being accepted as final candidates. |
+
+### Current Vanilla Runtime Snapshot
+
+- `max_attempts=3`
+- `step_limit=30`
+- `loop_policy=strict`
+- `search_streak_limit=8`
+- `no_diff_streak_limit=8`
+- `repeated_fail_limit=3`
+- `sed_fail_limit=2`
+- `patch_compile_gate=on`
+- `max_compile_fix_iterations=2`
+- `max_changed_lines=200`
+
+### Why 200-Line Patch Cap
+
+Computed from `princeton-nlp/SWE-bench_Verified` gold patches (500 tasks):
+- median changed lines (`+` + `-`): `7`
+- p90: `33`
+- p95: `52`
+- max: `232`
+
+Interpretation: `200` is intentionally permissive (well above p95) but blocks pathological large edits that are unlikely for vanilla single-issue fixes.
+
+### Recent Run Evidence (Vanilla-Focused)
+
+| Run | Config Highlight | Result | Resolved IDs |
+|-----|------------------|--------|--------------|
+| `20260218_114951_top3_retest_vanilla` | `step=75`, `attempts=3`, `loop=warn`, no compile gate | `1/3` | `14309` |
+| `20260218_142132_top3_retest_vanilla_12ddefaults` | `step=75`, `attempts=1`, `loop=warn` | `2/3` | `13453`, `14309` |
+| `20260218_145809_top3_compile_selfrepair` | compile gate on + self-repair, `loop=warn` | `1/3` (2 generated) | `14309` |
+| `20260218_152730_top3_compile_selfrepair_strict` | compile gate on + self-repair, `loop=strict` | `1/3` (2 generated) | `14309` |
+| `20260218_164418_top3_strict_softretry` | strict + soft retry guidance + compile gate | `2/3` | `13236`, `14309` |
+| `20260218_174616_current_vanilla_10_step30_compile_submit_stop` | `step=30`, `attempts=3`, `loop=strict`, compile gate on, compile-valid submit early stop | `2/10` | `12907`, `14309` |
+| `20260218_190623_current_vanilla_10_step30_compile_submit_stop_linecap200` | `step=30`, `attempts=3`, `loop=strict`, compile gate on, compile self-repair on, compile-valid submit early stop, `max_changed_lines=200` | `3/10` | `13236`, `13453`, `14309` |
+| `20260218_233125_current_vanilla_100_step30_compile_submit_stop_linecap200` | `step=30`, `attempts=3`, `loop=strict`, compile gate on, line cap 200, eval enabled, `limit=100` | **In progress** | Pending |
+| `20260219_0804_current_vanilla_100_step30_compile_submit_stop_linecap200_resume44` | Resume of stalled 100-run from remaining IDs file (`44` IDs), same settings, eval enabled | **Interrupted (power outage)** | N/A |
+| `20260219_081947_current_vanilla_100_step30_compile_submit_stop_linecap200_resume44_outage_recovery` | Outage recovery resume from same `remaining_44_ids.txt`, same settings, eval enabled | **In progress** | Pending |
+| `20260219_092955_current_vanilla_100_step30_compile_submit_stop_linecap200_resume44_monitored` | Monitored foreground resume from same `remaining_44_ids.txt`, same settings, eval enabled | **In progress** | Pending |
+| `20260219_093351_current_vanilla_100_step30_compile_submit_stop_linecap200_resume43_skip11728` | Monitored resume skipping `django__django-11728` (which repeatedly hung/errored), process remaining `43` IDs first | **In progress** | Pending |
+| `20260219_133508_current_vanilla_100_step30_compile_submit_stop_linecap200_resume43_skip11728_relaunch` | Fresh monitored relaunch of the `43`-ID skip11728 set after prior resume sessions exited at startup | **Partial completion** | `1/43` processed (`django__django-11734`, empty) before handoff to `remaining_42` file |
+| `20260219_144627_current_vanilla_100_step30_compile_submit_stop_linecap200_resume42_after_resume43relaunch` | Resume of `42` remaining IDs after `11734` completion, but executed during temporary DNS/network outage | **Completed but invalid run signal** | `0/42` generated; all clone failures (`git clone` exit 128 / DNS) |
+| `20260219_145201_current_vanilla_100_step30_compile_submit_stop_linecap200_resume42_after_dns_restore` | Relaunch of same `42` IDs immediately after GitHub DNS connectivity restored | **Completed** | `34/42` generated, `15/42` resolved (35%), `661.9m` runtime |
+| `20260220_094333_current_vanilla_100_step30_compile_submit_stop_linecap200_single_11728` | Isolated execution of previously skipped blocker instance `django__django-11728` | **Completed** | `1/1` generated, `0/1` resolved (11.3m) |
+| `20260220_095600_current_vanilla_100_step30_compile_submit_stop_linecap200_merged100` | Final merged 100-instance evaluation across all partial runs (`56 + 1 + 42 + 1`) | **Completed (final)** | **`31/100` resolved (31%)**, 14 empty patches |
+
+### Active Run (In Progress)
+
+- **Date/Start:** 2026-02-18 23:31 local
+- **Run ID:** `20260218_233125_current_vanilla_100_step30_compile_submit_stop_linecap200`
+- **Hypothesis:** The current vanilla stack (strict loop control + compile gate + 200-line cap) should sustain at least ~30% on a 100-instance slice while reducing obviously broken patches.
+- **Command:**
+```bash
+DOCKER_CONFIG=/tmp/docker-nocreds python -u run_benchmark.py \
+  --dataset princeton-nlp/SWE-bench_Verified \
+  --limit 100 \
+  --variants vanilla \
+  --run-name "current_vanilla_100_step30_compile_submit_stop_linecap200" \
+  --max-attempts 3 \
+  --step-limit 30 \
+  --loop-policy strict \
+  --patch-compile-gate on \
+  --max-fix-iterations 0 \
+  --max-workers 2
+```
+- **Validation status:** Running generation; final evaluation metrics pending.
+
+### Resume Run (In Progress)
+
+- **Date/Start:** 2026-02-19 08:04 local
+- **Run ID:** `20260219_0804_current_vanilla_100_step30_compile_submit_stop_linecap200_resume44`
+- **Reasoning/Hypothesis:** Original 100-run stalled at 56/100 with no active child process; resume exact remaining IDs to preserve comparability and complete a full 100-instance merged evaluation.
+- **Config/code changes:** No code changes; same runtime flags as original 100-run.
+- **Command:**
+```bash
+DOCKER_CONFIG=/tmp/docker-nocreds python -u run_benchmark.py \
+  --dataset princeton-nlp/SWE-bench_Verified \
+  --instance-ids-file benchmark_runs/20260218_233125_current_vanilla_100_step30_compile_submit_stop_linecap200/remaining_44_ids.txt \
+  --variants vanilla \
+  --run-name "current_vanilla_100_step30_compile_submit_stop_linecap200_resume44" \
+  --max-attempts 3 \
+  --step-limit 30 \
+  --loop-policy strict \
+  --patch-compile-gate on \
+  --max-fix-iterations 0 \
+  --max-workers 2
+```
+- **Validation status:** Resume generation/eval running; final merge + combined 100-instance validation pending.
+
+### Outage Interruption + Recovery
+
+- **Interruption:** Local power outage interrupted the first resume attempt before any instance completed.
+- **Recovery Run Start:** 2026-02-19 08:19 local
+- **Recovery Run ID:** `20260219_081947_current_vanilla_100_step30_compile_submit_stop_linecap200_resume44_outage_recovery`
+- **Recovery Command:** Same as resume command above, same `remaining_44_ids.txt`, same runtime flags.
+- **Status:** Running generation/eval; merge with initial 56-instance partial run pending after completion.
+
+### Monitored Resume (Current)
+
+- **Reasoning:** Background launches were unstable (startup-only then exit, including one `[Errno 32] Broken pipe` case), so switched to a monitored foreground benchmark session for continuity.
+- **Run ID:** `20260219_092955_current_vanilla_100_step30_compile_submit_stop_linecap200_resume44_monitored`
+- **Command:** Same `remaining_44_ids.txt` and runtime flags as prior resume attempts.
+- **Status:** Active; used for authoritative continuation and final merge.
+
+### Hanging-Case Mitigation (Current Execution Path)
+
+- **Observed blocker:** `django__django-11728` repeatedly caused startup/hang instability in multiple resume attempts (including one explicit `[Errno 32] Broken pipe` outcome).
+- **Mitigation:** Continue with the other remaining IDs first to guarantee forward progress.
+- **Run ID:** `20260219_093351_current_vanilla_100_step30_compile_submit_stop_linecap200_resume43_skip11728`
+- **IDs file:** `remaining_43_ids_skip11728.txt`
+- **Next step after completion:** run `django__django-11728` separately and then merge all predictions for one final 100-instance evaluation.
+
+### Relaunch After Startup Exits (Current Live Session)
+
+- **Date/Start:** 2026-02-19 13:35 local
+- **Run ID:** `20260219_133508_current_vanilla_100_step30_compile_submit_stop_linecap200_resume43_skip11728_relaunch`
+- **Reasoning/Hypothesis:** Prior resumed sessions for the same `43` IDs were repeatedly exiting right after initialization with zero predictions. Relaunch in a single monitored foreground PTY to keep continuous process control and observe per-attempt loop/gate behavior live.
+- **Config/code changes:** No code changes; identical runtime policy (`attempts=3`, `step=30`, `loop=strict`, compile gate on, line cap 200).
+- **Command:**
+```bash
+DOCKER_CONFIG=/tmp/docker-nocreds python -u run_benchmark.py \
+  --dataset princeton-nlp/SWE-bench_Verified \
+  --instance-ids-file benchmark_runs/20260218_233125_current_vanilla_100_step30_compile_submit_stop_linecap200/remaining_43_ids_skip11728.txt \
+  --variants vanilla \
+  --run-name "current_vanilla_100_step30_compile_submit_stop_linecap200_resume43_skip11728_relaunch" \
+  --max-attempts 3 \
+  --step-limit 30 \
+  --loop-policy strict \
+  --patch-compile-gate on
+```
+- **Live status (so far):** Running; currently processing `django__django-11734` with retries active (attempt 1 loop-aborted for `search_only_streak`, attempt 2 reached step cap and submitted empty diff, attempt 3 started).
+- **Next steps:** Let full `43`-ID run complete, then run `django__django-11728` separately and merge for final 100-instance evaluation.
+
+### DNS Outage Side-Run (Discarded for Signal)
+
+- **Date/Start:** 2026-02-19 14:46 local
+- **Run ID:** `20260219_144627_current_vanilla_100_step30_compile_submit_stop_linecap200_resume42_after_resume43relaunch`
+- **Reasoning/Hypothesis:** Continue from the in-progress set by excluding already completed `django__django-11734` and running remaining `42` IDs.
+- **Config/code changes:** No code changes; same runtime policy.
+- **Command:**
+```bash
+DOCKER_CONFIG=/tmp/docker-nocreds python -u run_benchmark.py \
+  --dataset princeton-nlp/SWE-bench_Verified \
+  --instance-ids-file benchmark_runs/20260218_233125_current_vanilla_100_step30_compile_submit_stop_linecap200/remaining_42_ids_after_resume43relaunch.txt \
+  --variants vanilla \
+  --run-name "current_vanilla_100_step30_compile_submit_stop_linecap200_resume42_after_resume43relaunch" \
+  --max-attempts 3 \
+  --step-limit 30 \
+  --loop-policy strict \
+  --patch-compile-gate on \
+  --max-fix-iterations 0 \
+  --max-workers 2
+```
+- **Result:** Technically finished but invalid for model-quality interpretation. All instances failed at repo setup (`git clone` exit 128; DNS host resolution failure to `github.com`) and produced empty predictions.
+- **Next step:** Relaunch the same 42 IDs once connectivity is restored.
+
+### DNS-Restored Relaunch (Completed)
+
+- **Date/Start:** 2026-02-19 14:52 local
+- **Run ID:** `20260219_145201_current_vanilla_100_step30_compile_submit_stop_linecap200_resume42_after_dns_restore`
+- **Reasoning/Hypothesis:** Resume valid execution from the same `42` IDs now that `git ls-remote https://github.com/django/django HEAD` succeeds again.
+- **Config/code changes:** No code changes; same runtime policy.
+- **Command:**
+```bash
+DOCKER_CONFIG=/tmp/docker-nocreds python -u run_benchmark.py \
+  --dataset princeton-nlp/SWE-bench_Verified \
+  --instance-ids-file benchmark_runs/20260218_233125_current_vanilla_100_step30_compile_submit_stop_linecap200/remaining_42_ids_after_resume43relaunch.txt \
+  --variants vanilla \
+  --run-name "current_vanilla_100_step30_compile_submit_stop_linecap200_resume42_after_dns_restore" \
+  --max-attempts 3 \
+  --step-limit 30 \
+  --loop-policy strict \
+  --patch-compile-gate on \
+  --max-fix-iterations 0 \
+  --max-workers 2
+```
+- **Result:** Completed successfully after connectivity recovery.
+  - Generation: `34/42` (80%)
+  - Resolution: `15/42` (35%)
+  - Runtime: `661.9m`
+  - Loop aborts: `9`
+  - Avg attempts used: `2.21`
+- **Output artifacts:**
+  - `benchmark_runs/20260219_145201_current_vanilla_100_step30_compile_submit_stop_linecap200_resume42_after_dns_restore/report.json`
+  - `benchmark_runs/20260219_145201_current_vanilla_100_step30_compile_submit_stop_linecap200_resume42_after_dns_restore/report.md`
+- **Combined progress vs target 100:** `99/100` instances now have predictions (`56` original + `1` from 133508 + `42` from 145201). Remaining pending instance: `django__django-11728`.
+- **Next step:** run isolated `django__django-11728`, then merge all partial runs and execute final unified 100-instance evaluation.
+
+### Isolated Pending Instance Completion (`django__django-11728`)
+
+- **Date/Start:** 2026-02-20 09:43 local
+- **Run ID:** `20260220_094333_current_vanilla_100_step30_compile_submit_stop_linecap200_single_11728`
+- **Reasoning/Hypothesis:** Complete the only missing instance from the split-resume workflow to enable final 100-instance resolved count.
+- **Config/code changes:** No code changes; identical runtime policy.
+- **Command:**
+```bash
+DOCKER_CONFIG=/tmp/docker-nocreds python -u run_benchmark.py \
+  --dataset princeton-nlp/SWE-bench_Verified \
+  --instance-ids django__django-11728 \
+  --variants vanilla \
+  --run-name "current_vanilla_100_step30_compile_submit_stop_linecap200_single_11728" \
+  --max-attempts 3 \
+  --step-limit 30 \
+  --loop-policy strict \
+  --patch-compile-gate on \
+  --max-fix-iterations 0 \
+  --max-workers 1
+```
+- **Result:** `1/1` generated, `0/1` resolved, runtime `11.3m`.
+
+### Final Merged 100 Evaluation (Authoritative)
+
+- **Date/Run ID:** 2026-02-20 / `20260220_095600_current_vanilla_100_step30_compile_submit_stop_linecap200_merged100`
+- **Reasoning/Hypothesis:** Produce one authoritative resolved metric for the original 100-target by merging all non-overlapping partial prediction sets.
+- **Merged sources:**
+  - `benchmark_runs/20260218_233125_current_vanilla_100_step30_compile_submit_stop_linecap200/predictions/vanilla.jsonl` (`56`)
+  - `benchmark_runs/20260219_133508_current_vanilla_100_step30_compile_submit_stop_linecap200_resume43_skip11728_relaunch/predictions/vanilla.jsonl` (`1`)
+  - `benchmark_runs/20260219_145201_current_vanilla_100_step30_compile_submit_stop_linecap200_resume42_after_dns_restore/predictions/vanilla.jsonl` (`42`)
+  - `benchmark_runs/20260220_094333_current_vanilla_100_step30_compile_submit_stop_linecap200_single_11728/predictions/vanilla.jsonl` (`1`)
+- **Integrity check:** merged file contains `100` lines with `100` unique instance IDs.
+- **Evaluation command:**
+```bash
+python -u evaluate_predictions.py \
+  --file benchmark_runs/20260220_095600_current_vanilla_100_step30_compile_submit_stop_linecap200_merged100/predictions/vanilla_merged_100.jsonl \
+  --dataset princeton-nlp/SWE-bench_Verified \
+  --max-workers 2 \
+  --force \
+  --no-update-log
+```
+- **Final result (authoritative for this 100-run):**
+  - **Resolved:** **`31/100` (31%)**
+  - Unresolved: `55/100`
+  - Empty patches: `14/100`
+  - Errors: `0`
+  - Harness score on full SWE-bench Verified denominator: `31/500 = 6.20%`
+- **Primary artifact:** `evaluation_results/qwen-mini.eval_20260220_100245.json`
+- **Conclusion vs target:** passes the stated main gate (`>=30%`) for vanilla on 100 instances.
+
+### Cross-Run Delta vs EXP-012d (same 10-instance set)
+
+- EXP-012d resolved: `13236`, `13453`, `14309` (3/10)
+- Current step30/compile-submit-stop + linecap200 resolved: `13236`, `13453`, `14309` (3/10)
+- Net vs EXP-012d: parity (no gain, no loss on this 10-instance set)
+- Delta vs previous step30/compile-submit-stop run (`2/10`): recovered `13236` and `13453`, lost `12907`
+
+### Interpretation of the Latest Tuning Cycle
+
+1. Compile gate improved output hygiene but did not guarantee semantic correctness (all final patches compile-valid in the 10-instance run; most still unresolved).
+2. Early stop on compile-valid submit reduced retries, but can lock in wrong first patches when no behavioral signal is available.
+3. Strict loop controls reduce obvious wandering, but difficult stochastic instances (notably `13236`) still need better trajectory steering.
+4. Patch-size guard (`max_changed_lines=200`) did not trigger on this run (0 hits), so it did not affect selection here but remains a safety net for future over-edit outliers.
+
+### Logging Rule Going Forward
+
+For every tweak, record all four items before/after each run:
+1. exact config/code diff,
+2. intent/reason,
+3. run ID(s) + command,
+4. observed impact on resolved IDs/regressions/runtime.
+
 ## Experiment Template
 
 Each experiment entry should include:
@@ -2519,5 +2795,565 @@ The script handles the full pipeline: instance loading → generation → Docker
 
 ### Status
 ✅ **COMPLETE** - Baseline established at 9% resolution (9/100)
+
+---
+
+## EXP-012: Fixed Ollama Configuration (Context Window + Temperature + Retry)
+
+### Metadata
+- **Date**: 2026-02-16
+- **Configuration**: Fixed critical Ollama config bugs discovered in EXP-011 failure analysis
+- **Model**: Qwen3-Coder:30B (Q4_K_M) via Ollama — same as EXP-011
+- **Dataset**: SWE-bench Verified
+- **Sample Size**: 10 instances (validation run before scaling up)
+
+### Root Cause Analysis of EXP-011 Failures
+
+EXP-011 achieved only 9% resolution (9/100). Deep analysis revealed **critical configuration bugs**:
+
+| Issue | Severity | Before (EXP-011) | After (EXP-012) |
+|-------|----------|-------------------|------------------|
+| Context window | CRITICAL | ~2048 tokens (Ollama default) | 32768 tokens |
+| Temperature | HIGH | 0.7 (Ollama default) | 0.0 (deterministic) |
+| Max tokens | MEDIUM | Unset | 8192 |
+| Step limit | MEDIUM | 100 | 200 |
+| Catastrophic deletion guard | MEDIUM | None | Reject if >50 lines removed & >5x ratio |
+| Ollama connection retry | MEDIUM | None | 2 retries with 30s delay |
+
+**The context window issue alone explains most failures**: the system prompt (~900 tokens) + instance template (~1500 tokens) nearly filled the 2048-token window, leaving almost nothing for actual code context and conversation history.
+
+### Hypothesis
+With proper context window (32K vs ~2K), deterministic temperature (0.0 vs 0.7), and other fixes:
+- **Generation rate** should increase from 42% to >60% (agent can actually read the problem)
+- **Resolution rate** should increase from 9% to 15-25% (agent can hold context)
+- Fewer catastrophic file rewrites, syntax errors, and hallucinated completions
+
+### Changes Made
+
+**File**: `claudecode_n_codex_swebench/utils/qwen_mini_interface.py`
+
+1. **Model config** (lines 464-469): Added `temperature: 0.0`, `max_tokens: 8192`, `num_ctx: 32768` to `model_kwargs`
+2. **Step limit** (line 253): `100` → `200`
+3. **Catastrophic deletion detection** (lines 565-569): Rejects patches removing >50 lines with >5x remove/add ratio
+4. **Ollama retry logic** (lines 348-359): 2 retries with 30s delay for `ConnectionError`/`OSError`
+
+### Method
+```bash
+cd /Users/rafaelalonso/Development/Master/Tesis/claudecode_n_codex_swebench
+
+DOCKER_CONFIG=/tmp/docker-nocreds python run_benchmark.py \
+  --dataset princeton-nlp/SWE-bench_Verified \
+  --limit 10 \
+  --variants baseline \
+  --max-workers 1 \
+  --run-name "exp012_fixed_config"
+```
+
+### Results
+
+**Note**: Run was interrupted after 3/10 instances. Docker evaluation completed on all 3.
+
+#### Generation Phase (3/10 instances completed)
+
+| Instance | Patch Size | Time |
+|----------|-----------|------|
+| astropy__astropy-12907 | 1542 chars | 236s |
+| astropy__astropy-13033 | 1190 chars | 158s |
+| astropy__astropy-13236 | 863 chars | 131s |
+
+- **Generation rate: 100% (3/3)** — all instances produced non-empty patches
+
+#### Evaluation Phase (Docker)
+
+| Instance | Resolved? | FAIL_TO_PASS | PASS_TO_PASS | Regressions |
+|----------|-----------|--------------|--------------|-------------|
+| astropy__astropy-12907 | **No** | 0/2 fixed | 0/13 pass | **13 regressions** (broken indentation) |
+| astropy__astropy-13033 | **No** | 0/1 fixed | 19/20 pass | 1 regression |
+| astropy__astropy-13236 | **Yes** | 2/2 fixed | 644/644 pass | **0 regressions** |
+
+- **Resolution rate: 33% (1/3)**
+- **Regression rate: 67% (2/3 patches caused regressions)**
+
+#### Comparison with EXP-011 (same 3 instances)
+
+| Metric | EXP-011 | EXP-012 | Change |
+|--------|---------|---------|--------|
+| Patches generated | 1/3 (33%) | 3/3 (100%) | **+67pp** |
+| Resolved | 0/3 (0%) | 1/3 (33%) | **+33pp** |
+| `astropy-12907` | Empty patch | Patch but 13 regressions | Generated but bad |
+| `astropy-13033` | Empty patch | Patch, 1 regression, didn't fix bug | Generated but incomplete |
+| `astropy-13236` | Patch (failed eval) | **Resolved, 0 regressions** | **Fixed!** |
+
+### Analysis
+
+1. **Context window fix validated**: The most dramatic change. Two instances that produced zero output with ~2K context now generate real patches at 32K. `astropy-13236` went from failed to **cleanly resolved**.
+
+2. **Generation rate dramatically improved**: 33% → 100% for these 3 instances. Extrapolating to the full 100 instances, we'd expect ~70-80% generation rate vs EXP-011's 42%.
+
+3. **Quality still mixed**: `astropy-12907` generated a patch with broken indentation and duplicate conditionals — causing 13 regressions. This suggests the model still struggles with precise code editing even with adequate context.
+
+4. **astropy-13236 is the showcase**: Perfect resolution — 2 target tests fixed, all 644 existing tests pass. The model correctly identified and removed the problematic `NdarrayMixin` conversion block.
+
+5. **Small sample caveat**: n=3 is too small for definitive conclusions. A full 10+ run is needed.
+
+### Run Directory
+`benchmark_runs/20260216_194846_exp012_fixed_config/`
+- `predictions/baseline.jsonl` — 3 predictions (run interrupted)
+- `evaluations/` — empty (eval ran separately via `evaluate_predictions.py`)
+- `evaluation_results/logs/run_evaluation/eval_20260216_230030/` — full Docker eval logs
+
+### Next Steps
+- [ ] Re-run EXP-012 with full 10 instances to get statistically meaningful results
+- [ ] Consider increasing to 100 instances to compare directly with EXP-011
+- [ ] Investigate `astropy-12907` regression — model produced broken indentation, may need prompt improvement for code editing
+- [ ] Analyze whether 32K context is sufficient or if 65K would help
+
+### Status
+✅ **COMPLETE** (partial run) — Config fixes validated: 0% → 33% resolution, 33% → 100% generation
+
+---
+
+## EXP-012d: Full 10-Instance Run with Agent Loop Fix
+
+### Metadata
+- **Date**: 2026-02-17 11:33 – 13:15
+- **Configuration**: Qwen3-Coder 30B (Q4_K_M) via Ollama + mini-swe-agent
+  - `temperature=0.0`, `max_tokens=8192`, `num_ctx=32768`
+  - `step_limit=75` (reduced from 200)
+  - `has_finished()` fix: check ALL output lines for exit signal (not just line 0)
+  - `ACTION_OBSERVATION_TEMPLATE`: added `<step>N/75</step>` counter + `<reminder>` on every observation
+- **Model**: qwen3-coder:30b (Q4_K_M quantization)
+- **Sample Size**: 10 instances (same first 10 as EXP-011)
+
+### Hypothesis
+With properly configured parameters (32K context, temperature=0, 8K max_tokens) and the agent loop fix,
+the Qwen model should produce more patches and resolve more issues than EXP-011's unconfigured baseline.
+
+### Background — Agent Loop Bug Discovery
+During an earlier attempt at this run (step_limit=200), instance 2 (`astropy-13033`) got stuck in an
+infinite loop for 90+ minutes. Root cause analysis revealed:
+
+1. The agent would echo `COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT` combined with other echo commands
+2. `has_finished()` only checked `lines[0]` of output — the signal on a later line was silently ignored
+3. The agent then entered a "declare victory" loop, repeating its summary endlessly
+
+**Two fixes applied:**
+- `mini_swe_agent_fork/src/minisweagent/agents/default.py`: `has_finished()` now checks ALL output lines
+- `qwen_mini_interface.py`: ACTION_OBSERVATION_TEMPLATE now includes step counter and exit reminder
+
+After fixes, instance 2 completed in 102s (vs 90+ min stuck). All 10 instances completed normally.
+
+### Method
+```bash
+cd claudecode_n_codex_swebench
+# step_limit changed from 200 → 75 in qwen_mini_interface.py
+# has_finished() fix applied and mini-swe-agent reinstalled
+DOCKER_CONFIG=/tmp/docker-nocreds python -u run_benchmark.py \
+  --dataset princeton-nlp/SWE-bench_Verified \
+  --limit 10 --variants baseline --max-workers 1 \
+  --run-name "exp012d_32k_10inst"
+```
+
+### Results
+
+#### Summary
+| Metric | EXP-011 (first 10) | EXP-012d | Change |
+|--------|-------------------|----------|--------|
+| **Generation Rate** | 30% (3/10) | **70% (7/10)** | +133% |
+| **Resolution Rate** | 0% (0/10) | **30% (3/10)** | +∞ |
+| **Total Time** | ~90 min | 90 min | — |
+
+#### Per-Instance Comparison
+| Instance | EXP-011 | EXP-012d | Notes |
+|----------|---------|----------|-------|
+| astropy-12907 | empty | patch | Produced patch but didn't resolve |
+| astropy-13033 | empty | patch | Was the instance that looped before fix |
+| astropy-13236 | patch | **RESOLVED** | Consistent resolver across runs |
+| astropy-13398 | empty | empty | Both failed to generate |
+| astropy-13453 | empty | **RESOLVED** | New resolution |
+| astropy-13579 | patch | patch | Generated but didn't resolve in either |
+| astropy-13977 | empty | patch | New generation |
+| astropy-14096 | empty | empty | Both failed |
+| astropy-14182 | patch | empty | Regression — took 73 min, produced nothing |
+| astropy-14309 | empty | **RESOLVED** | New resolution |
+
+#### Resolved Instances (3/10)
+1. `astropy__astropy-13236` — TimeSeries misleading exception fix
+2. `astropy__astropy-13453` — Table column copy issue
+3. `astropy__astropy-14309` — FITS connect fix
+
+#### Timing per Instance
+| Instance | Time | Steps | Notes |
+|----------|------|-------|-------|
+| astropy-12907 | 133s | ~22 | Normal |
+| astropy-13033 | 129s | ~17 | Fixed by has_finished patch |
+| astropy-13236 | 59s | ~10 | Fast, clean resolution |
+| astropy-13398 | 159s | ~20 | Gave up, empty patch |
+| astropy-13453 | 78s | ~12 | Fast resolution |
+| astropy-13579 | 127s | ~15 | Normal |
+| astropy-13977 | 127s | ~15 | Normal |
+| astropy-14096 | 104s | ~14 | Gave up, empty |
+| astropy-14182 | 4404s | ~75 | Hit step limit, slow (5.5 min/step at full context) |
+| astropy-14309 | 84s | ~17 | Fast resolution |
+
+### Analysis
+
+1. **Generation rate doubled**: 30% → 70%. The config fixes (temperature=0, max_tokens=8192, num_ctx=32768) dramatically improved the model's ability to produce patches.
+
+2. **Resolution rate: 0% → 30%**. Three instances now resolve that none did in EXP-011. This is the single most important result — the configured model actually solves problems.
+
+3. **Agent loop fix is critical**: Without the `has_finished()` fix, instance 2 would have looped indefinitely. The step counter reminder helps the agent know when to submit.
+
+4. **One slow outlier**: Instance `astropy-14182` took 73 min (4404s) due to 5.5 min/step at full 32K context. This suggests some instances fill the context window rapidly, making each generation very slow. A lower step_limit (e.g., 30) would help time budget without losing resolutions (all 3 resolutions completed in ≤17 steps).
+
+5. **One regression vs EXP-011**: `astropy-14182` went from producing a patch (EXP-011) to empty (EXP-012d). Non-determinism at play — different solution trajectories with different configs.
+
+### Run Directory
+`benchmark_runs/20260217_113259_exp012d_32k_10inst/`
+- `predictions/baseline.jsonl` — 10 predictions (7 non-empty)
+- `evaluations/baseline.eval.json` — Docker evaluation results
+
+### Next Steps
+- [ ] Consider lowering step_limit to 30 (all resolutions completed in ≤17 steps)
+- [ ] Run on larger sample (50-100 instances) for statistical significance
+- [ ] Begin EXP-002: TDD prompt engineering to further reduce regressions
+- [ ] Analyze the 4 unresolved patches to understand failure modes
+
+### Status
+✅ **COMPLETE** — Config fixes + agent loop fix: 0% → 30% resolution, 30% → 70% generation
+
+---
+
+## EXP-013: Context Management and Prompt Improvements
+
+### Metadata
+- **Date**: 2026-02-17 14:46 – ongoing
+- **Configuration**: Qwen3-Coder 30B (Q4_K_M) via Ollama + mini-swe-agent
+  - Base: same as EXP-012d (`temperature=0.0`, `max_tokens=8192`, `num_ctx=32768`, `step_limit=75`)
+  - Three sub-experiments testing different context management strategies
+- **Model**: qwen3-coder:30b (Q4_K_M quantization)
+- **Sample Size**: 10 instances (full run) + 2-instance verification runs
+- **Backup**: `qwen_mini_interface.py.exp013b_backup` (state before EXP-013c)
+
+### Hypothesis
+EXP-012d analysis showed three bottlenecks: (1) context overflow at 32K causing 73-min runs, (2) agent loops
+repeating the same commands, (3) wrong file paths from hardcoded imports. Addressing these should improve
+generation rate (>80%) and resolution rate (>30%).
+
+### Research Background
+Surveyed top SWE-bench agents to identify best practices for context management:
+
+| Technique | Source | Key Finding |
+|-----------|--------|-------------|
+| **Observation Masking** | "The Complexity Trap" (JetBrains, NeurIPS 2025) | Keep agent reasoning, mask old tool outputs → +2.6% solve rate, -52.7% cost |
+| **LLM Summarization** | OpenHands | Summarize old context → 50% cost reduction but encourages "trajectory elongation" |
+| **History Processors** | SWE-agent (NeurIPS 2024) | Collapse old observations to single line, keep last 5 full |
+| **AST Span Context** | Moatless Tools | Only show relevant code spans → 39% solve at $0.14/issue |
+| **Two-Phase Localize/Edit** | Agentless | Hierarchical narrowing: file → function → line → edit |
+| **Neural Context Pruning** | SWE-Pruner | 0.6B skimmer prunes irrelevant lines → 23-38% token savings |
+
+**Critical insight**: Research shows keeping agent reasoning and masking old observations outperforms
+keeping observations and stripping reasoning (which is what EXP-013a/b did).
+
+### Sub-experiments
+
+---
+
+### EXP-013a: Aggressive Context Pruning (FAILED)
+
+**Changes (all in `qwen_mini_interface.py`):**
+1. Better fault localization prompts (working directory guidance, common pitfalls)
+2. Loop detection (command history tracking, warnings for repeats/import retries)
+3. **Context pruning: replace old turn pairs with 1-line summary (keep last 7 pairs)**
+
+**Method:**
+```bash
+DOCKER_CONFIG=/tmp/docker-nocreds python -u run_benchmark.py \
+  --dataset princeton-nlp/SWE-bench_Verified \
+  --limit 10 --variants baseline --max-workers 1 \
+  --run-name "exp013_context_mgmt"
+```
+
+**Results:**
+
+| Metric | EXP-012d (baseline) | EXP-013a | Change |
+|--------|---------------------|----------|--------|
+| Generation | 7/10 (70%) | 9/10 (90%) | **+20%** |
+| Resolution | 3/10 (30%) | 1/10 (10%) | **-20%** |
+| Time | 90 min | 59 min | -34% |
+
+Per-instance detail:
+| Instance | EXP-012d | EXP-013a |
+|----------|----------|----------|
+| astropy-12907 | 1941 chars, not resolved | 544 chars, not resolved |
+| astropy-13033 | 4108 chars, not resolved | 1398 chars (79s!), not resolved |
+| astropy-13236 | 721 chars, **RESOLVED** | 821 chars, FAILED (644 P2P regressions) |
+| astropy-13398 | empty | 3462 chars, not resolved (5 regressions) |
+| astropy-13453 | 531 chars, **RESOLVED** | 748 chars, FAILED (9 regressions) |
+| astropy-13579 | 1860 chars, not resolved | 1894 chars, **RESOLVED** (new!) |
+| astropy-13977 | 898 chars, not resolved | 930 chars, not resolved (12/20 F2P but 4 regressions) |
+| astropy-14096 | empty | empty |
+| astropy-14182 | empty (73 min) | 677 chars (169s), not resolved |
+| astropy-14309 | 573 chars, **RESOLVED** | 572 chars, FAILED (141 regressions) |
+
+**Analysis:**
+- Generation improved significantly (70% → 90%) — prompt improvements and loop detection worked
+- Resolution **decreased** (30% → 10%) — context pruning removed file content the model needed
+- Previously resolved instances (13236, 13453, 14309) now produce broken patches with massive regressions
+- Loop detection effective: astropy-13033 finished in 79s (was 90+ min before)
+- **Root cause**: Pruning replaced old turn pairs (containing file reads) with command+rc summaries.
+  The model couldn't write correct patches without seeing the source code it had read earlier.
+
+**Conclusion:** Aggressive context pruning is harmful. Generation ≠ resolution.
+
+---
+
+### EXP-013b: Smart Pruning — Strip Reasoning, Keep Observations (FAILED)
+
+**Changes (from 013a):**
+- Tier 1 (soft prune): Strip THOUGHT reasoning from old assistant messages, keep observations intact
+- Tier 2 (hard prune): Remove oldest pairs if > 15 total (fallback)
+- Truncate observations > 3000 chars to first 1500 + last 1500
+
+**Rationale:** If the model needs file content to write correct patches, keep the observations
+but remove the model's own reasoning text (which it doesn't need to see again).
+
+**Method:**
+```bash
+DOCKER_CONFIG=/tmp/docker-nocreds python -u run_benchmark.py \
+  --dataset princeton-nlp/SWE-bench_Verified \
+  --instance-ids astropy__astropy-14182 astropy__astropy-13236 \
+  --variants baseline --max-workers 1 \
+  --run-name "exp013b_smart_prune_test"
+```
+
+**Results (2 instances):**
+| Instance | EXP-012d | EXP-013b |
+|----------|----------|----------|
+| astropy-13236 | 721 chars, **RESOLVED** | 1041 chars, FAILED (590 P2P regressions) |
+| astropy-14182 | empty | 631 chars, not resolved (0 regressions) |
+
+**Patch comparison for astropy-13236:**
+- EXP-012d (resolved): Clean 5-line deletion removing NdarrayMixin conversion, keeping `data_is_mixin = True`
+- EXP-013b (failed): Over-engineered — added `warnings.warn()` FutureWarning, removed `data_is_mixin = True`
+
+**Analysis:**
+- Smart pruning still resulted in wrong patches for the critical regression instance
+- The model's reasoning history matters more than we thought — stripping it changes the model's decisions
+- Research confirms this: "The Complexity Trap" paper found keeping reasoning and masking observations
+  outperforms keeping observations and stripping reasoning
+
+**Conclusion:** We had it backwards. Agent reasoning is the signal; old tool output is the noise.
+
+---
+
+### EXP-013c: Observation Masking (Research-Backed Approach) — IN PROGRESS
+
+**Changes (from 013b, based on research):**
+1. **Observation masking** (from "The Complexity Trap", NeurIPS 2025):
+   - Keep ALL agent reasoning (THOUGHT + command) intact
+   - Replace old observations (beyond last 4) with: `[Previous output omitted (N lines). Return code: X]`
+   - Hard-remove oldest pairs only if > 10 total (down from 15)
+2. **Trimmed INSTANCE_TEMPLATE** (~60 lines removed):
+   - Removed verbose command examples (cat heredoc, python3 pathlib, sed patterns, line deletion)
+   - Condensed "Common Pitfalls" from 5 items to 3 lines
+   - Kept: Quality Requirements, Working Directory guidance, Recommended Workflow, Important Rules
+   - Target: save ~1000 tokens of prompt for interaction context
+3. **Added persistence/reflection instructions** to SYSTEM_TEMPLATE:
+   - "After each command result, briefly reflect on what you learned"
+   - "Keep iterating until you have verified the fix works. Do not submit prematurely."
+4. **Loop detection** retained from EXP-013a (command history tracking, warnings)
+
+**Method:**
+```bash
+# Quick 2-instance verification test
+DOCKER_CONFIG=/tmp/docker-nocreds python -u run_benchmark.py \
+  --dataset princeton-nlp/SWE-bench_Verified \
+  --instance-ids astropy__astropy-14182 astropy__astropy-13236 \
+  --variants baseline --max-workers 1 \
+  --run-name "exp013c_obs_masking"
+```
+
+**Results (2-instance test):**
+
+| Instance | EXP-012d | EXP-013a (aggressive prune) | EXP-013b (smart prune) | EXP-013c (obs masking) |
+|----------|----------|---------------------------|----------------------|----------------------|
+| astropy-13236 | **RESOLVED** | FAILED (644 regr) | FAILED (590 regr) | **RESOLVED** (0 regr!) |
+| astropy-14182 | empty (73 min) | 677 chars (169s) | 631 chars (769s) | 552 chars (330s), 9 regr |
+
+- astropy-13236: F2P 2/2 fixed, P2P 0/644 regressed — **clean resolution recovered!**
+- astropy-14182: F2P 0/1, P2P 9/9 regressed — still not resolved (never was in EXP-012d either)
+- Generation: 2/2 (100%)
+- Resolution: 1/2 (50%)
+
+**Analysis:**
+Observation masking is the correct approach. By keeping the model's reasoning chain intact and only
+replacing old tool outputs with placeholders, the model retains its "plan memory" and makes better
+editing decisions. This matches the NeurIPS 2025 finding that agent reasoning is signal, tool output
+is noise.
+
+**Next step:** Full 10-instance run with Docker eval as EXP-013c.
+
+### EXP-013c Full 10-Instance Results
+
+**Run:** `benchmark_runs/20260217_185009_exp013c_obs_masking_full/`
+**Eval:** `evaluation_results/logs/run_evaluation/eval_20260217_195301/`
+
+| Instance | Patch | Time | Resolved | F2P pass/fail | P2P pass/fail | P2P regressions |
+|----------|-------|------|----------|--------------|--------------|-----------------|
+| 12907 | 504 | 560s | No | 0/2 | 6/13 | **7** |
+| 13033 | 0 | 356s | — | — | — | — |
+| 13236 | 975 | 389s | No | 0/2 | 54/644 | **590** |
+| 13398 | 652 | 662s | No | 0/4 | 0/68 | **68** |
+| 13453 | 526 | 137s | **YES** | 1/1 | 9/9 | 0 |
+| 13579 | 3530 | 974s | No | 0/1 | 31/40 | **9** |
+| 13977 | 629 | 133s | No | 0/20 | 0/322 | **322** |
+| 14096 | 0 | 129s | — | — | — | — |
+| 14182 | 1293 | 376s | No | 0/1 | 0/9 | **9** |
+| 14309 | 585 | 56s | **YES** | 1/1 | 141/141 | 0 |
+
+- **Generation: 8/10 (80%)**
+- **Resolution: 2/10 (20%)**
+- Total time: 62.9 min
+
+Note: 13236 resolved in the 2-instance test but failed in the full 10-instance run (stochastic behavior even at temp=0).
+
+---
+
+## EXP-013d: Hybrid — Near-Original Prompts + Obs Masking + Loop Detection
+
+### Metadata
+- **Date**: 2026-02-17 20:27
+- **Configuration**: Revert prompts to near-EXP-012d + observation masking + loop detection
+- **Model**: Qwen3-Coder 30B (Q4_K_M) via Ollama
+- **Sample Size**: 10 instances
+
+### Hypothesis
+The resolution drop from 30% (012d) to 20% (013c) is primarily caused by **prompt changes** (prescriptive workflow, removed command examples), not by context management. Reverting to near-original prompts while keeping runtime improvements (observation masking + loop detection) should achieve:
+- **30%+ resolution** (from 012d's original prompt style)
+- **Fast execution** (from loop detection + obs masking preventing context overflow)
+- **High generation** (from context management keeping model productive)
+
+### Cross-Run Analysis (012d vs 013a vs 013c)
+
+| Instance | 012d resolved | 012d P2P reg | 013a resolved | 013a P2P reg | 013c resolved | 013c P2P reg |
+|----------|--------------|-------------|--------------|-------------|--------------|-------------|
+| 12907 | No | 6 | No | 0 | No | 7 |
+| 13033 | No | 0 | No | 1 | — | — |
+| **13236** | **YES** | **0** | No | **644** | No | **590** |
+| 13398 | — | — | No | 5 | No | 68 |
+| **13453** | **YES** | **0** | No | **9** | **YES** | **0** |
+| **13579** | No | 0 | **YES** | **0** | No | 9 |
+| 13977 | No | 322 | No | 4 | No | 322 |
+| 14096 | — | — | — | — | — | — |
+| 14182 | — | — | No | 0 | No | 9 |
+| **14309** | **YES** | **0** | No | **141** | **YES** | **0** |
+
+**Key findings:**
+1. **13236 broken by prompt changes**: Resolved in 012d (721 chars, 59s), failed in BOTH 013a and 013c with massive regressions. Common factor = modified prompt.
+2. **13453/14309 broken by aggressive pruning**: Failed in 013a but recovered in 013c (obs masking preserved context).
+3. **13579 only resolved in 013a**: Aggressive pruning occasionally helps complex issues by forcing focus.
+4. **14182 timeout solved**: 73 min → 3-6 min in all 013 variants (loop detection works).
+
+### Changes from EXP-013c → EXP-013d
+
+1. **INSTANCE_TEMPLATE reverted to near-012d**:
+   - Removed prescriptive "Working Directory" section → replaced with 2-line `<important>` note
+   - Reverted workflow step 1: "Run pwd and ls..." → "Analyze the codebase by finding and reading relevant files"
+   - Removed "Common Pitfalls" section entirely (loop detection handles this at runtime)
+   - **Restored full "Useful command examples"** (cat heredoc, python3 pathlib, line deletion, full sed w/ macOS, nl -ba)
+2. **Observation masking relaxed**: obs_window 4→6, max_pairs 10→12 (more generous context)
+3. **SYSTEM_TEMPLATE**: Kept reflection instruction (lightweight positive guidance)
+4. **Loop detection**: Kept unchanged
+
+### Backup Files
+- `qwen_mini_interface.py.exp013c_backup` — EXP-013c state
+- `qwen_mini_interface.py.exp013b_backup` — EXP-013a state (pre-013c)
+
+### Method
+```bash
+# Quick 2-instance test (skipped eval)
+DOCKER_CONFIG=/tmp/docker-nocreds python -u run_benchmark.py \
+  --dataset princeton-nlp/SWE-bench_Verified \
+  --instance-ids astropy__astropy-13236 astropy__astropy-14309 \
+  --variants baseline --max-workers 1 \
+  --run-name "exp013d_test" --skip-eval
+
+# Full 10-instance run with Docker eval
+DOCKER_CONFIG=/tmp/docker-nocreds python -u run_benchmark.py \
+  --dataset princeton-nlp/SWE-bench_Verified \
+  --limit 10 --variants baseline --max-workers 1 \
+  --run-name "exp013d_hybrid"
+```
+
+### Results (2-instance test — skip-eval)
+| Instance | Patch | Time | Steps | Notes |
+|----------|-------|------|-------|-------|
+| 13236 | 553 | 6402s (107m) | 21 | Looped on macOS sed syntax (10+ attempts). Wrong fix. |
+| 14309 | 558 | 66s | 13 | Clean, correct fix. Same as 012d/013c. |
+
+**Observation:** astropy-13236 is highly stochastic. In 012d it resolved in 59s; in 013d it took 107 min and got the wrong fix. The model's struggle with macOS `sed -i` (missing `''` backup argument) causes repeated failures. The loop detection didn't catch it because each sed command was slightly different.
+
+### Results (full 10-instance run)
+
+**Run directory:** `benchmark_runs/20260217_230314_exp013d_hybrid_v2/`
+**Eval directory:** `evaluation_results/logs/run_evaluation/eval_20260218_021703/`
+**Total time:** 193.8 min (astropy-13236 consumed 107 min alone)
+
+| Instance | Patch (chars) | Time (s) | Steps | Resolved | P2P Regressions |
+|----------|--------------|----------|-------|----------|-----------------|
+| 12907 | 3671 | 736 | 75 | No | 2 |
+| 13033 | 1174 | 208 | 35 | No | 1 |
+| 13236 | 553 | 6412 | ~75 | No | 458 |
+| 13398 | 891 | 353 | — | No | 55 |
+| 13453 | 379 | 449 | — | No | 7 |
+| 13579 | 2598 | 2105 | — | No | 9 |
+| 13977 | 629 | 184 | — | No | 226 |
+| 14096 | 581 | 979 | 73 | No | 0 |
+| 14182 | 554 | 121 | 19 | No | 0 |
+| **14309** | **947** | **82** | **13** | **Yes** | **0** |
+
+- **Generation Rate:** 100% (10/10)
+- **Resolution Rate:** 10% (1/10) — only astropy-14309
+- **Regression Rate:** 70% (7/10 instances had P2P regressions)
+
+### Analysis
+
+**EXP-013d is a regression from EXP-012d (30% → 10%).** The hybrid approach did not improve results.
+
+**Cross-experiment comparison (all 10 instances, same dataset):**
+
+| Experiment | Config | Resolution | Resolved Instances | Total Time |
+|------------|--------|-----------|-------------------|------------|
+| **EXP-012d** | Vanilla (no context mgmt) | **30% (3/10)** | 13236, 13453, 14309 | 90 min |
+| EXP-013a | Aggressive pruning + new prompts | 10% (1/10) | 13579 | 59 min |
+| EXP-013c | Obs masking + trimmed prompts | 20% (2/10) | 13453, 14309 | 63 min |
+| EXP-013d | Obs masking + original prompts | 10% (1/10) | 14309 | 194 min |
+
+**Key findings:**
+1. **EXP-012d remains the best config** at 30% resolution. Every modification we tried made things worse.
+2. **astropy-14309 is the only stable resolver** — resolved in all 4 runs. It's a simple guard condition fix.
+3. **astropy-13236 is highly stochastic** — resolved only in 012d (59s), failed in all 013x variants (107+ min each time). The model's struggle with macOS `sed -i` syntax causes exploration spirals.
+4. **Observation masking did NOT prevent regressions** — 7/10 instances had P2P regressions (vs unknown for 012d). The agent still produces harmful edits.
+5. **Loop detection was insufficient** — astropy-13236 still took 107 min despite loop warnings. Each sed command was slightly different, evading detection.
+6. **Context management adds overhead without benefit** — 194 min total (vs 90 min for 012d). The masking/pruning makes the model lose context of what it already tried.
+
+### Next Steps
+- [ ] Revert to EXP-012d configuration (vanilla) as the best baseline
+- [ ] Investigate running inside Docker (SWE-bench's intended environment) to avoid macOS `sed -i` issues
+- [ ] Consider increasing temperature slightly (0.1-0.2) to reduce exploration loops
+- [ ] Focus on prompt-only improvements without context manipulation
+
+### Revert Instructions
+To revert to EXP-013c state:
+```bash
+cp claudecode_n_codex_swebench/utils/qwen_mini_interface.py.exp013c_backup \
+   claudecode_n_codex_swebench/utils/qwen_mini_interface.py
+```
+To revert to EXP-012d state:
+```bash
+cp claudecode_n_codex_swebench/utils/qwen_mini_interface.py.exp013b_backup \
+   claudecode_n_codex_swebench/utils/qwen_mini_interface.py
+```
 
 ---

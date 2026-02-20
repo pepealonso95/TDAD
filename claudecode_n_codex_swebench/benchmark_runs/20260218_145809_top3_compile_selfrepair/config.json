@@ -1,0 +1,25 @@
+{
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "variants": [
+    {
+      "name": "vanilla",
+      "backend": "qwen-mini",
+      "tdd_mode": false,
+      "use_graphrag": false
+    }
+  ],
+  "limit": null,
+  "instance_ids": [
+    "astropy__astropy-13236",
+    "astropy__astropy-13453",
+    "astropy__astropy-14309"
+  ],
+  "skip_eval": false,
+  "max_workers": 2,
+  "run_name": "top3_compile_selfrepair",
+  "max_attempts": 3,
+  "step_limit": 75,
+  "loop_policy": "warn",
+  "max_fix_iterations": 0,
+  "patch_compile_gate": "on"
+}

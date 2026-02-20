@@ -89,7 +89,12 @@ class CodeSWEAgent:
     def __init__(self, prompt_template: Optional[str] = None,
                  model: Optional[str] = None,
                  backend: str = DEFAULT_BACKEND,
-                 tdd_mode: bool = False):
+                 tdd_mode: bool = False,
+                 max_attempts: Optional[int] = None,
+                 step_limit: Optional[int] = None,
+                 loop_policy: Optional[str] = None,
+                 max_fix_iterations: Optional[int] = None,
+                 patch_compile_gate: Optional[bool] = None):
         self.backend = (backend or DEFAULT_BACKEND).lower()
         self.tdd_mode = tdd_mode
         if self.backend == "codex":
@@ -112,6 +117,24 @@ class CodeSWEAgent:
         self.results_dir = self.base_dir / "results"
         self.predictions_dir = self.base_dir / "predictions"
 
+        # Optional runtime controls (currently consumed by qwen-mini interface)
+        self.max_attempts = max_attempts
+        self.step_limit = step_limit
+        self.loop_policy = loop_policy
+        self.max_fix_iterations = max_fix_iterations
+        self.patch_compile_gate = patch_compile_gate
+        if self.backend == "qwen-mini":
+            if self.max_attempts is not None:
+                self.interface.max_attempts = self.max_attempts
+            if self.step_limit is not None:
+                self.interface.step_limit = self.step_limit
+            if self.loop_policy is not None:
+                self.interface.loop_policy = self.loop_policy
+            if self.max_fix_iterations is not None:
+                self.interface.max_fix_iterations = self.max_fix_iterations
+            if self.patch_compile_gate is not None:
+                self.interface.patch_compile_gate = self.patch_compile_gate
+
         # Resolve model name from alias
         self.model = get_model_name(model, self.backend) if model else None
         self.model_alias = model  # Keep original alias for logging
@@ -121,6 +144,25 @@ class CodeSWEAgent:
         self.predictions_dir.mkdir(exist_ok=True)
         self.pred_timestamp: Optional[str] = None
         self.pred_file: Optional[Path] = None
+
+    @staticmethod
+    def _parse_test_list(raw_value) -> List[str]:
+        """Parse dataset FAIL_TO_PASS / PASS_TO_PASS fields into a list[str]."""
+        if raw_value is None:
+            return []
+        if isinstance(raw_value, list):
+            return [str(x) for x in raw_value if str(x).strip()]
+        if isinstance(raw_value, str):
+            raw_value = raw_value.strip()
+            if not raw_value:
+                return []
+            try:
+                parsed = json.loads(raw_value)
+                if isinstance(parsed, list):
+                    return [str(x) for x in parsed if str(x).strip()]
+            except json.JSONDecodeError:
+                return []
+        return []
 
     def setup_repository(self, instance: Dict) -> Optional[str]:
         """Set up a repository for testing."""
@@ -191,6 +233,8 @@ class CodeSWEAgent:
             try:
                 tdd_info = " (TDD mode)" if self.tdd_mode else ""
                 print(f"Running Qwen-Mini (Mini-SWE-Agent + Ollama){tdd_info}...")
+                fail_to_pass_tests = self._parse_test_list(instance.get("FAIL_TO_PASS"))
+                pass_to_pass_tests = self._parse_test_list(instance.get("PASS_TO_PASS"))
 
                 result = self.interface.execute_code_cli(
                     instance_id=instance["instance_id"],
@@ -199,7 +243,9 @@ class CodeSWEAgent:
                     base_commit=instance["base_commit"],
                     hints_text=instance.get("hints_text", ""),
                     tdd_mode=self.tdd_mode,
-                    graphrag_enabled=False
+                    graphrag_enabled=False,
+                    fail_to_pass_tests=fail_to_pass_tests,
+                    pass_to_pass_tests=pass_to_pass_tests,
                 )
 
                 if result.get("error"):
@@ -214,6 +260,15 @@ class CodeSWEAgent:
                     "instance_id": instance_id,
                     "model": "qwen-mini",
                     "prediction": result.get("prediction", ""),
+                    "attempts_used": result.get("attempts_used"),
+                    "loop_abort_reason": result.get("loop_abort_reason"),
+                    "f2p_pass_rate": result.get("f2p_pass_rate"),
+                    "p2p_smoke_failures": result.get("p2p_smoke_failures"),
+                    "clean_resolution": result.get("clean_resolution"),
+                    "patch_gate_valid": result.get("patch_gate_valid"),
+                    "patch_gate_reason": result.get("patch_gate_reason"),
+                    "patch_gate_severity": result.get("patch_gate_severity"),
+                    "attempt_summaries": result.get("attempt_summaries", []),
                 }
             except Exception as e:
                 import traceback
@@ -370,6 +425,16 @@ def main():
                        help="Code model backend to use (claude, codex, qwen, qwen-mini, gptoss, or ccr)")
     parser.add_argument("--tdd", action="store_true",
                        help="Use TDD mode - generate tests first, then implementation (only works with qwen backend)")
+    parser.add_argument("--max-attempts", type=int,
+                       help="Max attempts per instance for qwen-mini")
+    parser.add_argument("--step-limit", type=int,
+                       help="Max steps per attempt for qwen-mini")
+    parser.add_argument("--loop-policy", type=str, choices=["off", "warn", "strict"],
+                       help="Loop control policy for qwen-mini")
+    parser.add_argument("--max-fix-iterations", type=int,
+                       help="Max test-fix iterations for qwen-mini TDD/GraphRAG loops")
+    parser.add_argument("--patch-compile-gate", type=str, choices=["on", "off"],
+                       help="Enable/disable compile gate before accepting qwen-mini patches")
 
     args = parser.parse_args()
     
@@ -391,7 +456,17 @@ def main():
     if args.tdd and backend not in ["qwen", "qwen-mini"]:
         print(f"Warning: --tdd flag only works with qwen/qwen-mini backend, ignoring for {backend}")
 
-    agent = CodeSWEAgent(args.prompt_template, args.model, backend, tdd_mode=args.tdd)
+    agent = CodeSWEAgent(
+        args.prompt_template,
+        args.model,
+        backend,
+        tdd_mode=args.tdd,
+        max_attempts=args.max_attempts,
+        step_limit=args.step_limit,
+        loop_policy=args.loop_policy,
+        max_fix_iterations=args.max_fix_iterations,
+        patch_compile_gate=(None if args.patch_compile_gate is None else args.patch_compile_gate == "on"),
+    )
 
     # Run on specific instance or dataset
     if args.instance_id:

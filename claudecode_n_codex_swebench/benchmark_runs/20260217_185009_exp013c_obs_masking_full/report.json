@@ -1,0 +1,113 @@
+{
+  "run_name": "exp013c_obs_masking_full",
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "timestamp": "2026-02-17T20:07:55.733027",
+  "instance_count": 10,
+  "instance_ids": [
+    "astropy__astropy-12907",
+    "astropy__astropy-13033",
+    "astropy__astropy-13236",
+    "astropy__astropy-13398",
+    "astropy__astropy-13453",
+    "astropy__astropy-13579",
+    "astropy__astropy-13977",
+    "astropy__astropy-14096",
+    "astropy__astropy-14182",
+    "astropy__astropy-14309"
+  ],
+  "variants": [
+    {
+      "name": "baseline",
+      "predictions_file": "benchmark_runs/20260217_185009_exp013c_obs_masking_full/predictions/baseline.jsonl",
+      "eval_file": "benchmark_runs/20260217_185009_exp013c_obs_masking_full/evaluations/baseline.eval.json",
+      "total_time_s": 3771.925095319748,
+      "generation_count": 8,
+      "empty_count": 2,
+      "resolved_count": 2,
+      "unresolved_count": 6,
+      "eval_ran": true,
+      "instances": [
+        {
+          "instance_id": "astropy__astropy-12907",
+          "patch_chars": 504,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 560.0963010787964,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-13033",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 355.99895906448364,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-13236",
+          "patch_chars": 975,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 389.15371584892273,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-13398",
+          "patch_chars": 652,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 661.6577939987183,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-13453",
+          "patch_chars": 526,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 136.88697600364685,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-13579",
+          "patch_chars": 3530,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 973.6169259548187,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-13977",
+          "patch_chars": 629,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 133.09023809432983,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-14096",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 129.1704921722412,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-14182",
+          "patch_chars": 1293,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 376.067378282547,
+          "resolved": null
+        },
+        {
+          "instance_id": "astropy__astropy-14309",
+          "patch_chars": 585,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 56.18216609954834,
+          "resolved": null
+        }
+      ]
+    }
+  ]
+}

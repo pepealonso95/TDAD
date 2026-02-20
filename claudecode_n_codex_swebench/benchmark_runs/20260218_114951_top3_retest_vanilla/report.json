@@ -1,0 +1,70 @@
+{
+  "run_name": "top3_retest_vanilla",
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "timestamp": "2026-02-18T12:07:39.919223",
+  "instance_count": 3,
+  "instance_ids": [
+    "astropy__astropy-13236",
+    "astropy__astropy-13453",
+    "astropy__astropy-14309"
+  ],
+  "variants": [
+    {
+      "name": "vanilla",
+      "predictions_file": "benchmark_runs/20260218_114951_top3_retest_vanilla/predictions/vanilla.jsonl",
+      "eval_file": "benchmark_runs/20260218_114951_top3_retest_vanilla/evaluations/vanilla.eval.json",
+      "total_time_s": 759.4658789634705,
+      "generation_count": 3,
+      "empty_count": 0,
+      "resolved_count": 1,
+      "unresolved_count": 2,
+      "eval_ran": true,
+      "loop_abort_count": 1,
+      "avg_attempts_used": 3.0,
+      "avg_f2p_pass_rate": 0.0,
+      "avg_p2p_smoke_failures": 0.0,
+      "clean_resolution_count": 0,
+      "instances": [
+        {
+          "instance_id": "astropy__astropy-13236",
+          "patch_chars": 872,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 330.2416250705719,
+          "resolved": null,
+          "attempts_used": 3,
+          "loop_abort_reason": "",
+          "f2p_pass_rate": null,
+          "p2p_smoke_failures": null,
+          "clean_resolution": null
+        },
+        {
+          "instance_id": "astropy__astropy-13453",
+          "patch_chars": 379,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 223.83634400367737,
+          "resolved": null,
+          "attempts_used": 3,
+          "loop_abort_reason": "",
+          "f2p_pass_rate": null,
+          "p2p_smoke_failures": null,
+          "clean_resolution": null
+        },
+        {
+          "instance_id": "astropy__astropy-14309",
+          "patch_chars": 585,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 205.38571500778198,
+          "resolved": null,
+          "attempts_used": 3,
+          "loop_abort_reason": "no_diff_streak:8",
+          "f2p_pass_rate": null,
+          "p2p_smoke_failures": null,
+          "clean_resolution": null
+        }
+      ]
+    }
+  ]
+}

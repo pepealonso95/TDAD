@@ -1,0 +1,79 @@
+{
+  "run_name": "top3_compile_selfrepair",
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "timestamp": "2026-02-18T15:20:54.039188",
+  "instance_count": 3,
+  "instance_ids": [
+    "astropy__astropy-13236",
+    "astropy__astropy-13453",
+    "astropy__astropy-14309"
+  ],
+  "variants": [
+    {
+      "name": "vanilla",
+      "predictions_file": "benchmark_runs/20260218_145809_top3_compile_selfrepair/predictions/vanilla.jsonl",
+      "eval_file": "benchmark_runs/20260218_145809_top3_compile_selfrepair/evaluations/vanilla.eval.json",
+      "total_time_s": 1229.1922101974487,
+      "generation_count": 2,
+      "empty_count": 1,
+      "resolved_count": 1,
+      "unresolved_count": 1,
+      "eval_ran": true,
+      "loop_abort_count": 2,
+      "avg_attempts_used": 3.0,
+      "avg_f2p_pass_rate": 0.0,
+      "avg_p2p_smoke_failures": 0.0,
+      "clean_resolution_count": 0,
+      "instances": [
+        {
+          "instance_id": "astropy__astropy-13236",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 763.7258422374725,
+          "resolved": null,
+          "attempts_used": 3,
+          "loop_abort_reason": "no_diff_streak:9",
+          "f2p_pass_rate": null,
+          "p2p_smoke_failures": null,
+          "clean_resolution": null,
+          "patch_gate_valid": false,
+          "patch_gate_reason": "catastrophic_deletion:1639_removed_vs_5_added,syntax_compile_failed:astropy/table/table.py",
+          "patch_gate_severity": "fail"
+        },
+        {
+          "instance_id": "astropy__astropy-13453",
+          "patch_chars": 379,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 250.95416498184204,
+          "resolved": null,
+          "attempts_used": 3,
+          "loop_abort_reason": "",
+          "f2p_pass_rate": null,
+          "p2p_smoke_failures": null,
+          "clean_resolution": null,
+          "patch_gate_valid": true,
+          "patch_gate_reason": "ok",
+          "patch_gate_severity": "info"
+        },
+        {
+          "instance_id": "astropy__astropy-14309",
+          "patch_chars": 585,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 214.5100450515747,
+          "resolved": null,
+          "attempts_used": 3,
+          "loop_abort_reason": "no_diff_streak:10",
+          "f2p_pass_rate": null,
+          "p2p_smoke_failures": null,
+          "clean_resolution": null,
+          "patch_gate_valid": true,
+          "patch_gate_reason": "ok",
+          "patch_gate_severity": "info"
+        }
+      ]
+    }
+  ]
+}
