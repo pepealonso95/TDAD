@@ -1,0 +1,16 @@
+instance_id,vanilla_status,tdd_prompt_status,graphrag_status,graph_patch_empty,graph_loop_abort_reason,graph_patch_gate_reason,graph_attempts_used,graph_test_signal_reliable,graph_f2p_reliable,graph_p2p_reliable,graph_indexed_search_used,graph_impacted_total,graph_impacted_run,graph_impacted_success,graph_changed_lines_total,graph_format_errors_total,graph_timeouts_total
+django__django-10973,resolved,unresolved,empty,1,instance_timeout:1200s,,,,,,,,,,,0,0
+django__django-11095,unresolved,resolved,empty,1,instance_timeout:1200s,,,,,,,,,,,0,0
+django__django-11276,resolved,resolved,unresolved,0,,ok,2,True,True,True,True,0,0,True,11,0,0
+django__django-11292,resolved,unresolved,unresolved,0,no_diff_streak:12,ok,3,True,True,True,True,0,0,True,6,0,0
+django__django-11551,unresolved,resolved,empty,1,no_diff_streak:12,"too_many_changed_lines:364_limit_200,catastrophic_deletion:329_removed_vs_35_added,syntax_compile_failed:django/contrib/admin/checks.py;indexed_search_missing_without_unit_test",3,True,True,True,False,0,0,,364,0,0
+django__django-11603,resolved,resolved,empty,1,,repetitive_code:max_repeat=4,3,True,True,True,True,0,0,True,5,3,0
+django__django-11815,resolved,resolved,unresolved,0,,ok,1,True,True,True,True,0,0,True,7,0,0
+django__django-12125,resolved,resolved,empty,1,instance_timeout:1200s,,,,,,,,,,,0,0
+django__django-12209,unresolved,resolved,empty,1,instance_timeout:1200s,,,,,,,,,,,0,0
+django__django-12708,resolved,empty,unresolved,0,no_diff_streak:12,ok,3,True,True,True,True,2,2,False,15,0,0
+django__django-12713,resolved,empty,unresolved,0,no_diff_streak:12,ok,3,True,True,True,True,1,1,False,21,0,0
+django__django-12741,empty,resolved,unresolved,0,,ok,1,True,True,True,True,0,0,True,5,3,0
+django__django-13012,resolved,resolved,empty,1,instance_timeout:1200s,,,,,,,,,,,0,0
+django__django-13033,resolved,resolved,empty,1,,empty_diff,3,True,True,True,True,0,0,True,0,1,0
+django__django-13109,resolved,resolved,empty,1,instance_timeout:1200s,,,,,,,,,,,0,0

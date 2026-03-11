@@ -4,31 +4,35 @@ import subprocess
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
 from utils.gptoss_agent import GPTOSSAgent
+from utils.local_llm import (
+    ensure_local_llm_server_ready,
+    get_local_llm_api_base,
+    get_local_llm_api_key,
+    get_local_llm_runtime,
+)
 
 load_dotenv()
 
 class GPTOSSCodeInterface:
-    """Interface for interacting with GPT-OSS using Ollama with custom agent loop."""
+    """Interface for interacting with GPT-OSS using a local OpenAI-compatible server."""
 
     def __init__(self):
-        """Ensure Ollama is running and initialize agent."""
+        """Ensure the local llama.cpp/OpenAI-compatible server is reachable."""
+        self.local_llm_runtime = get_local_llm_runtime()
+        self.api_base = get_local_llm_api_base()
+        self.api_key = get_local_llm_api_key()
         try:
-            # Check if Ollama is running
-            try:
-                subprocess.run([
-                    "ollama", "list"
-                ], capture_output=True, text=True, check=True, timeout=5)
-            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
-                raise RuntimeError(
-                    "Ollama is not running. Please start Ollama with: brew services start ollama"
-                )
-
-            print("✅ Ollama is ready")
-
-        except FileNotFoundError:
-            raise RuntimeError(
-                "Ollama not found. Please ensure 'ollama' is installed and in PATH"
+            models_url = ensure_local_llm_server_ready(
+                api_base=self.api_base,
+                api_key=self.api_key,
+                timeout=5,
             )
+            print(f"✅ {self.local_llm_runtime} server is ready ({models_url})")
+        except Exception as exc:
+            raise RuntimeError(
+                f"Local {self.local_llm_runtime} server is not reachable at {self.api_base}. "
+                f"Start llama.cpp server and expose an OpenAI-compatible /v1 endpoint. ({exc})"
+            ) from exc
 
     def execute_code_cli(self, prompt: str, cwd: str, model: str = None) -> Dict[str, any]:
         """Execute GPT-OSS agent with custom tool loop.
@@ -41,15 +45,19 @@ class GPTOSSCodeInterface:
         try:
             # DEBUG: Log execution details
             print(f"\n{'='*60}")
-            print(f"DEBUG: Executing GPT-OSS Agent with Ollama")
+            print(f"DEBUG: Executing GPT-OSS Agent with {self.local_llm_runtime}")
             print(f"Working Directory: {cwd}")
             print(f"Model: {model if model else 'gpt-oss:20b'}")
+            print(f"API Base: {self.api_base}")
             print(f"Prompt length: {len(prompt)} characters")
             print(f"Prompt preview (first 500 chars):\n{prompt[:500]}")
             print(f"{'='*60}\n")
 
             # Initialize agent
-            agent = GPTOSSAgent(model=model if model else "gpt-oss:20b")
+            agent = GPTOSSAgent(
+                model=model if model else "gpt-oss:20b",
+                base_url=self.api_base,
+            )
 
             # Run the task
             result = agent.run_task(prompt, cwd)

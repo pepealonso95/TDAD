@@ -1,0 +1,68 @@
+{
+  "run_name": "graphrag_tdd_guard_either_queryfix_single1",
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "timestamp": "2026-03-02T15:34:06.317707",
+  "instance_count": 1,
+  "instance_ids": [
+    "astropy__astropy-12907"
+  ],
+  "variants": [
+    {
+      "name": "graphrag_tdd",
+      "predictions_file": "benchmark_runs/20260302_151628_graphrag_tdd_guard_either_queryfix_single1/predictions/graphrag_tdd.jsonl",
+      "eval_file": "benchmark_runs/20260302_151628_graphrag_tdd_guard_either_queryfix_single1/evaluations/graphrag_tdd.eval.json",
+      "total_time_s": 936.4423699378967,
+      "generation_count": 1,
+      "empty_count": 0,
+      "resolved_count": 1,
+      "unresolved_count": 0,
+      "eval_ran": true,
+      "loop_abort_count": 1,
+      "avg_attempts_used": 3.0,
+      "avg_f2p_pass_rate": 0.0,
+      "avg_p2p_smoke_failures": 10.0,
+      "clean_resolution_count": 0,
+      "instances": [
+        {
+          "instance_id": "astropy__astropy-12907",
+          "patch_chars": 506,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 936.4418430328369,
+          "resolved": null,
+          "attempts_used": 3,
+          "loop_abort_reason": "no_diff_streak:12",
+          "f2p_pass_rate": 0.0,
+          "p2p_smoke_failures": 10,
+          "clean_resolution": null,
+          "patch_gate_valid": true,
+          "patch_gate_reason": "ok",
+          "patch_gate_severity": "info",
+          "test_signal_reliable": false,
+          "f2p_reliable": false,
+          "p2p_reliable": false,
+          "changed_lines_total": 3,
+          "graph_guard_mode": "either",
+          "graph_guard_passed": true,
+          "graph_guard_reason": "",
+          "test_files_changed_count": 0,
+          "indexed_search_attempted": true,
+          "indexed_search_success": true,
+          "repo_test_changed": false,
+          "tdd_evidence_complete": true,
+          "tdd_evidence_reason": "",
+          "tdd_fail_open_applied": true,
+          "tdd_infra_reasons": [
+            "import_path_mismatch"
+          ],
+          "repro_cmd_present": true,
+          "repro_failed_before_edit": true,
+          "verify_cmd_present": true,
+          "verify_pass_after_edit": false,
+          "smoke_cmd_present": true,
+          "smoke_pass_after_edit": false
+        }
+      ]
+    }
+  ]
+}

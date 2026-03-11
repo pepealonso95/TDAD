@@ -15,7 +15,7 @@ import tempfile
 import shutil
 import time
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import Any, List, Dict, Optional
 from pathlib import Path
 
 from tqdm import tqdm
@@ -25,10 +25,12 @@ from utils.claude_interface import ClaudeCodeInterface
 from utils.codex_interface import CodexCodeInterface
 from utils.qwen_interface import QwenCodeInterface
 from utils.qwen_mini_interface import QwenMiniInterface
+from utils.qwen_mini_interface_graphrag_tdd import QwenMiniInterfaceGraphRAGTDD
 from utils.prompt_formatter import PromptFormatter
 from utils.patch_extractor import PatchExtractor
 from utils.model_registry import get_model_name
-from utils.mcp_graphrag_interface import GraphRAGMCPInterface
+from utils.graphrag_interface import create_graphrag_interface
+from utils.local_model_backend import set_local_backend_idle_if_owned
 from code_swe_agent import load_cached_dataset
 
 
@@ -57,11 +59,23 @@ class GraphRAGCodeSWEAgent:
         impact_threshold: float = 0.3,
         max_impacted_tests: int = 50,
         mcp_server_url: str = "http://localhost:8080",
+        graphrag_tool_mode: str = "local",
+        graphrag_tdd_profile: bool = False,
         max_attempts: Optional[int] = None,
         step_limit: Optional[int] = None,
         loop_policy: Optional[str] = None,
         max_fix_iterations: Optional[int] = None,
         patch_compile_gate: Optional[bool] = None,
+        test_signal_mode: Optional[str] = None,
+        retry_policy: Optional[str] = None,
+        enforce_tdd_test_first: Optional[bool] = None,
+        graph_guard_mode: Optional[str] = None,
+        strict_tdd_evidence: Optional[bool] = None,
+        test_change_policy: Optional[str] = None,
+        strict_tdd_infra_policy: Optional[str] = None,
+        strict_tdd_infra_retry_budget: Optional[int] = None,
+        indexed_signal_mode: Optional[str] = None,
+        graph_refresh_policy: Optional[str] = None,
     ):
         """
         Initialize GraphRAG-enhanced agent.
@@ -74,9 +88,13 @@ class GraphRAGCodeSWEAgent:
             tdd_mode: Enable TDD-focused prompts (for Qwen backend)
             impact_threshold: Minimum impact score (0-1) for test selection
             max_impacted_tests: Maximum number of impacted tests to run
-            mcp_server_url: MCP server URL (for external server)
+            mcp_server_url: MCP server URL (only used when graphrag_tool_mode=mcp)
+            graphrag_tool_mode: GraphRAG transport mode (local|mcp|auto)
         """
         self.backend = (backend or DEFAULT_BACKEND).lower()
+        self.use_graphrag = use_graphrag
+        self.tdd_mode = tdd_mode
+        self.graphrag_tdd_profile = graphrag_tdd_profile
 
         # Initialize backend interface
         if self.backend == "codex":
@@ -84,7 +102,10 @@ class GraphRAGCodeSWEAgent:
         elif self.backend == "qwen":
             self.interface = QwenCodeInterface()
         elif self.backend == "qwen-mini":
-            self.interface = QwenMiniInterface()
+            if self.use_graphrag and self.tdd_mode and self.graphrag_tdd_profile:
+                self.interface = QwenMiniInterfaceGraphRAGTDD()
+            else:
+                self.interface = QwenMiniInterface()
         else:
             self.backend = "claude"
             self.interface = ClaudeCodeInterface()
@@ -102,19 +123,33 @@ class GraphRAGCodeSWEAgent:
         # Resolve model name from alias
         self.model = get_model_name(model, self.backend) if model else None
         self.model_alias = model  # Keep original alias for logging
+        if self.backend == "qwen-mini" and hasattr(self.interface, "set_model_name"):
+            self.interface.set_model_name(self.model)
 
         # GraphRAG configuration
-        self.use_graphrag = use_graphrag
-        self.tdd_mode = tdd_mode
         self.impact_threshold = impact_threshold
         self.max_impacted_tests = max_impacted_tests
-        self.mcp: Optional[GraphRAGMCPInterface] = None
+        self.mcp: Optional[Any] = None
         self.graph_cache: Dict[str, bool] = {}  # Track built graphs by repo
+        self.graphrag_tool_mode = str(
+            graphrag_tool_mode
+            or os.getenv("GRAPH_RAG_TOOL_MODE", "local")
+        ).strip().lower()
         self.max_attempts = max_attempts
         self.step_limit = step_limit
         self.loop_policy = loop_policy
         self.max_fix_iterations = max_fix_iterations
         self.patch_compile_gate = patch_compile_gate
+        self.test_signal_mode = test_signal_mode
+        self.retry_policy = retry_policy
+        self.enforce_tdd_test_first = enforce_tdd_test_first
+        self.graph_guard_mode = graph_guard_mode
+        self.strict_tdd_evidence = strict_tdd_evidence
+        self.test_change_policy = test_change_policy
+        self.strict_tdd_infra_policy = strict_tdd_infra_policy
+        self.strict_tdd_infra_retry_budget = strict_tdd_infra_retry_budget
+        self.indexed_signal_mode = indexed_signal_mode
+        self.graph_refresh_policy = graph_refresh_policy
 
         if self.backend == "qwen-mini":
             if self.max_attempts is not None:
@@ -127,13 +162,40 @@ class GraphRAGCodeSWEAgent:
                 self.interface.max_fix_iterations = self.max_fix_iterations
             if self.patch_compile_gate is not None:
                 self.interface.patch_compile_gate = self.patch_compile_gate
+            if self.test_signal_mode is not None:
+                self.interface.test_signal_mode = self.test_signal_mode
+            if self.retry_policy is not None:
+                self.interface.retry_policy = self.retry_policy
+            if self.enforce_tdd_test_first is not None:
+                self.interface.enforce_tdd_test_first = self.enforce_tdd_test_first
+            if self.graph_guard_mode is not None:
+                self.interface.graph_guard_mode = self.graph_guard_mode
+            if self.strict_tdd_evidence is not None:
+                self.interface.strict_tdd_evidence = self.strict_tdd_evidence
+            if self.test_change_policy is not None:
+                self.interface.test_change_policy = self.test_change_policy
+            if self.strict_tdd_infra_policy is not None:
+                self.interface.strict_tdd_infra_policy = self.strict_tdd_infra_policy
+            if self.strict_tdd_infra_retry_budget is not None:
+                self.interface.strict_tdd_infra_retry_budget = self.strict_tdd_infra_retry_budget
+            if self.indexed_signal_mode is not None:
+                self.interface.indexed_signal_mode = self.indexed_signal_mode
+            if self.graph_refresh_policy is not None:
+                self.interface.graph_refresh_policy = self.graph_refresh_policy
 
-        # Initialize MCP interface if using GraphRAG
+        # Initialize GraphRAG interface if using GraphRAG
         if self.use_graphrag:
-            print(f"Initializing GraphRAG MCP server at {mcp_server_url}...")
+            print(
+                f"Initializing GraphRAG tool "
+                f"(mode={self.graphrag_tool_mode}, server_url={mcp_server_url})..."
+            )
             try:
-                self.mcp = GraphRAGMCPInterface(server_url=mcp_server_url)
-                print("GraphRAG MCP server ready")
+                self.mcp = create_graphrag_interface(
+                    mode=self.graphrag_tool_mode,
+                    server_url=mcp_server_url,
+                )
+                mode_effective = getattr(self.mcp, "transport_mode", self.graphrag_tool_mode)
+                print(f"GraphRAG tool ready (mode={mode_effective})")
             except Exception as e:
                 print(f"Warning: Failed to initialize GraphRAG: {e}")
                 print("Continuing without GraphRAG features...")
@@ -230,7 +292,9 @@ class GraphRAGCodeSWEAgent:
             result = self.mcp.build_graph(
                 repo_path=repo_path,
                 force_rebuild=False,
-                include_tests=True
+                include_tests=True,
+                repo_slug=repo_name,
+                commit_sha=base_commit,
             )
 
             duration = time.time() - start_time
@@ -316,7 +380,7 @@ class GraphRAGCodeSWEAgent:
 
     def get_changed_files(self, repo_path: str) -> List[str]:
         """
-        Get list of changed files using git diff.
+        Get list of changed files using git diff plus untracked files.
 
         Args:
             repo_path: Path to repository
@@ -333,16 +397,28 @@ class GraphRAGCodeSWEAgent:
                 capture_output=True,
                 text=True
             )
+            untracked_result = subprocess.run(
+                ["git", "ls-files", "--others", "--exclude-standard"],
+                capture_output=True,
+                text=True
+            )
 
             os.chdir(original_dir)
 
             if result.returncode == 0:
                 # Git diff returns paths RELATIVE to repo root - keep them as-is!
-                changed_files = [
-                    line.strip()
-                    for line in result.stdout.splitlines()
-                    if line.strip() and line.strip().endswith('.py')
-                ]
+                changed_files_raw = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+                if untracked_result.returncode == 0:
+                    changed_files_raw.extend(
+                        [line.strip() for line in untracked_result.stdout.splitlines() if line.strip()]
+                    )
+                # Deduplicate preserving order, keep Python files only.
+                seen = set()
+                changed_files = []
+                for path in changed_files_raw:
+                    if path.endswith(".py") and path not in seen:
+                        seen.add(path)
+                        changed_files.append(path)
                 return changed_files
             else:
                 print(f"Warning: Could not get changed files: {result.stderr}")
@@ -351,6 +427,21 @@ class GraphRAGCodeSWEAgent:
         except Exception as e:
             print(f"Error getting changed files: {e}")
             return []
+
+    def recover_timeout_prediction(self, instance_id: str, worker_pid: int) -> Optional[Dict]:
+        """Recover best-effort prediction from interface timeout checkpoint, when supported."""
+        recover_fn = getattr(self.interface, "recover_timeout_prediction", None)
+        if not callable(recover_fn):
+            return None
+        try:
+            recovered = recover_fn(instance_id=instance_id, worker_pid=worker_pid)
+        except TypeError:
+            recovered = recover_fn(instance_id, worker_pid)
+        if not isinstance(recovered, dict):
+            return None
+        # Preserve GraphRAG model label in recovered payload.
+        recovered.setdefault("model", "qwen-mini-graphrag")
+        return recovered
 
     def process_instance(self, instance: Dict) -> Dict:
         """Process a single SWE-bench instance with GraphRAG."""
@@ -379,7 +470,8 @@ class GraphRAGCodeSWEAgent:
             try:
                 graphrag_suffix = " + GraphRAG" if self.use_graphrag else ""
                 tdd_info = " (TDD mode)" if self.tdd_mode else ""
-                print(f"Running Qwen-Mini{graphrag_suffix}{tdd_info}...")
+                backend_label = getattr(self.interface, "describe_local_backend", lambda: "local LLM")()
+                print(f"Running Qwen-Mini ({backend_label}){graphrag_suffix}{tdd_info}...")
                 fail_to_pass_tests = self._parse_test_list(instance.get("FAIL_TO_PASS"))
                 pass_to_pass_tests = self._parse_test_list(instance.get("PASS_TO_PASS"))
 
@@ -416,11 +508,91 @@ class GraphRAGCodeSWEAgent:
                     "attempts_used": result.get("attempts_used"),
                     "loop_abort_reason": result.get("loop_abort_reason"),
                     "f2p_pass_rate": result.get("f2p_pass_rate"),
+                    "f2p_reliable": result.get("f2p_reliable"),
+                    "f2p_runtime_strategy": result.get("f2p_runtime_strategy", ""),
+                    "f2p_runtime_fallback_used": result.get("f2p_runtime_fallback_used", ""),
+                    "f2p_runtime_unreliable_reason": result.get("f2p_runtime_unreliable_reason", ""),
                     "p2p_smoke_failures": result.get("p2p_smoke_failures"),
+                    "p2p_reliable": result.get("p2p_reliable"),
+                    "p2p_runtime_strategy": result.get("p2p_runtime_strategy", ""),
+                    "p2p_runtime_fallback_used": result.get("p2p_runtime_fallback_used", ""),
+                    "p2p_runtime_unreliable_reason": result.get("p2p_runtime_unreliable_reason", ""),
+                    "test_signal_reliable": result.get("test_signal_reliable"),
                     "clean_resolution": result.get("clean_resolution"),
                     "patch_gate_valid": result.get("patch_gate_valid"),
                     "patch_gate_reason": result.get("patch_gate_reason"),
                     "patch_gate_severity": result.get("patch_gate_severity"),
+                    "changed_lines_total": result.get("changed_lines_total"),
+                    "graph_guard_mode": result.get("graph_guard_mode"),
+                    "graph_guard_passed": result.get("graph_guard_passed"),
+                    "graph_guard_raw_passed": result.get("graph_guard_raw_passed"),
+                    "graph_guard_reason": result.get("graph_guard_reason"),
+                    "graph_guard_signal_shape": result.get("graph_guard_signal_shape"),
+                    "graph_guard_used_either": result.get("graph_guard_used_either"),
+                    "graph_guard_used_both": result.get("graph_guard_used_both"),
+                    "graph_guard_bypassed_unreliable_runtime": result.get(
+                        "graph_guard_bypassed_unreliable_runtime",
+                    ),
+                    "test_files_changed": result.get("test_files_changed", []),
+                    "indexed_search_attempted": result.get("indexed_search_attempted"),
+                    "indexed_search_success": result.get("indexed_search_success"),
+                    "indexed_query_success": result.get("indexed_query_success"),
+                    "graph_useful_signal": result.get("graph_useful_signal", False),
+                    "graph_fallback_reason": result.get("graph_fallback_reason", ""),
+                    "impacted_selected_count": result.get("impacted_selected_count", 0),
+                    "impacted_runnable_count": result.get("impacted_runnable_count", 0),
+                    "impacted_runnable_ratio": result.get("impacted_runnable_ratio", 0.0),
+                    "impacted_precision_score": result.get("impacted_precision_score", 0.0),
+                    "impacted_precision_floor_passed": result.get(
+                        "impacted_precision_floor_passed",
+                        False,
+                    ),
+                    "impact_empty_reason": result.get("impact_empty_reason", ""),
+                    "repo_test_changed": result.get("repo_test_changed"),
+                    "runtime_reliable_for_test_contract": result.get(
+                        "runtime_reliable_for_test_contract",
+                    ),
+                    "test_change_required": result.get("test_change_required"),
+                    "test_change_enforcement": result.get("test_change_enforcement", ""),
+                    "repro_cmd": result.get("repro_cmd", ""),
+                    "repro_failed_count": result.get("repro_failed_count"),
+                    "repro_total": result.get("repro_total"),
+                    "repro_runtime_strategy": result.get("repro_runtime_strategy", ""),
+                    "repro_runtime_fallback_used": result.get("repro_runtime_fallback_used", ""),
+                    "repro_runtime_unreliable_reason": result.get("repro_runtime_unreliable_reason", ""),
+                    "repro_cmd_present": result.get("repro_cmd_present"),
+                    "repro_failed_before_edit": result.get("repro_failed_before_edit"),
+                    "verify_cmd": result.get("verify_cmd", ""),
+                    "verify_cmd_present": result.get("verify_cmd_present"),
+                    "verify_pass_after_edit": result.get("verify_pass_after_edit"),
+                    "smoke_cmd": result.get("smoke_cmd", ""),
+                    "smoke_cmd_present": result.get("smoke_cmd_present"),
+                    "smoke_pass_after_edit": result.get("smoke_pass_after_edit"),
+                    "tdd_evidence_complete": result.get("tdd_evidence_complete"),
+                    "tdd_evidence_reason": result.get("tdd_evidence_reason"),
+                    "tdd_fail_open_applied": result.get("tdd_fail_open_applied"),
+                    "tdd_infra_reasons": result.get("tdd_infra_reasons", []),
+                    "prompt_trace_id": result.get("prompt_trace_id", ""),
+                    "prompt_budget_chars": result.get("prompt_budget_chars"),
+                    "prompt_chars_before": result.get("prompt_chars_before"),
+                    "prompt_chars_after": result.get("prompt_chars_after"),
+                    "prompt_estimated_tokens_before": result.get("prompt_estimated_tokens_before"),
+                    "prompt_estimated_tokens_after": result.get("prompt_estimated_tokens_after"),
+                    "prompt_section_sizes_before": result.get("prompt_section_sizes_before", {}),
+                    "prompt_section_sizes_after": result.get("prompt_section_sizes_after", {}),
+                    "prompt_trimmed": result.get("prompt_trimmed"),
+                    "prompt_trimmed_sections": result.get("prompt_trimmed_sections", []),
+                    "mlx_backend_ready": result.get("mlx_backend_ready"),
+                    "mlx_backend_started_now": result.get("mlx_backend_started_now"),
+                    "mlx_backend_reused_existing": result.get("mlx_backend_reused_existing"),
+                    "mlx_backend_before": result.get("mlx_backend_before", {}),
+                    "mlx_backend_after": result.get("mlx_backend_after", {}),
+                    "mlx_backend_crash_detected": result.get("mlx_backend_crash_detected"),
+                    "mlx_backend_restarted": result.get("mlx_backend_restarted"),
+                    "mlx_backend_failure_reason": result.get("mlx_backend_failure_reason", ""),
+                    "required_test_added": result.get("required_test_added"),
+                    "infra_mode_effective": result.get("infra_mode_effective", ""),
+                    "tdd_contract_stage": result.get("tdd_contract_stage", ""),
                     "attempt_summaries": result.get("attempt_summaries", []),
                 }
             except Exception as e:
@@ -770,11 +942,16 @@ Make minimal changes to fix the tests while preserving your fix for the original
     def cleanup(self):
         """Cleanup GraphRAG resources."""
         if self.mcp:
-            print("Stopping GraphRAG MCP server...")
+            mode_effective = getattr(self.mcp, "transport_mode", self.graphrag_tool_mode)
+            print(f"Stopping GraphRAG tool (mode={mode_effective})...")
             self.mcp.stop_server()
+        local_backend = getattr(self.interface, "local_backend", None)
+        if local_backend is not None and self.backend == "qwen-mini":
+            set_local_backend_idle_if_owned(local_backend, prefix="QWEN_MINI")
 
 
 def main():
+    raw_argv = sys.argv[1:]
     parser = argparse.ArgumentParser(description="Run code models on SWE-bench with GraphRAG")
     parser.add_argument("--dataset_name", type=str,
                        default="princeton-nlp/SWE-bench_Lite",
@@ -799,23 +976,113 @@ def main():
                        help="Maximum number of impacted tests to identify")
     parser.add_argument("--mcp-server-url", type=str, default="http://localhost:8080",
                        help="MCP server URL (if already running externally)")
+    parser.add_argument(
+        "--graphrag-tool-mode",
+        type=str,
+        choices=["local", "mcp", "auto"],
+        default=os.getenv("GRAPH_RAG_TOOL_MODE", "local"),
+        help="GraphRAG transport mode (default: local, use mcp for external server)",
+    )
     parser.add_argument("--patch-compile-gate", type=str, choices=["on", "off"],
                        help="Enable/disable compile gate before accepting qwen-mini patches")
+    parser.add_argument("--graphrag-tdd-profile", type=str, choices=["on", "off"], default="on",
+                       help="Enable GraphRAG-aware qwen-mini TDD profile defaults (default: on)")
+    parser.add_argument("--max-attempts", type=int,
+                       help="Max attempts per instance for qwen-mini")
+    parser.add_argument("--step-limit", type=int,
+                       help="Max steps per attempt for qwen-mini")
+    parser.add_argument("--loop-policy", type=str, choices=["off", "warn", "strict"],
+                       help="Loop control policy for qwen-mini")
+    parser.add_argument("--max-fix-iterations", type=int,
+                       help="Max test-fix iterations for qwen-mini TDD/GraphRAG loops")
+    parser.add_argument("--test-signal-mode", type=str, choices=["off", "soft", "hard"],
+                       help="How local F2P/P2P checks influence attempt ranking")
+    parser.add_argument("--retry-policy", type=str, choices=["fixed", "adaptive"],
+                       help="Retry strategy for qwen-mini attempts")
+    parser.add_argument("--enforce-tdd-test-first", type=str, choices=["on", "off"],
+                       help="Require strict test-first appendix in qwen-mini TDD mode")
+    parser.add_argument("--graph-guard-mode", type=str, choices=["either", "both", "indexed_only"],
+                       help="GraphRAG candidate guard mode")
+    parser.add_argument("--strict-tdd-evidence", type=str, choices=["on", "off"],
+                       help="Require strict reproduce->verify->smoke evidence for TDD candidates")
+    parser.add_argument("--test-change-policy", type=str, choices=["any_test_like", "repo_tests_only"],
+                       help="Policy for counting unit-test file changes in graph guard")
+    parser.add_argument("--strict-tdd-infra-policy", type=str, choices=["fail_closed", "retry_then_fail_open", "fail_open"],
+                       help="Policy for strict TDD evidence when pytest signal is infra-unreliable (supports fail_open)")
+    parser.add_argument("--strict-tdd-infra-retry-budget", type=int,
+                       help="Extra retry budget for infra-unreliable strict TDD pytest checks")
+    parser.add_argument("--indexed-signal-mode", type=str, choices=["attempted_query", "successful_query"],
+                       help="How indexed-search usage is counted for graph guard")
 
     args = parser.parse_args()
 
     backend = args.backend or DEFAULT_BACKEND
 
-    # Check if selected CLI is available
-    cli_cmd = "codex" if backend == "codex" else "claude"
-    try:
-        result = subprocess.run([cli_cmd, "--version"], capture_output=True, text=True)
-        if result.returncode != 0:
+    # Check external CLI only for backends that depend on it.
+    if backend not in ["qwen", "qwen-mini"]:
+        cli_cmd = "codex" if backend == "codex" else "claude"
+        try:
+            result = subprocess.run([cli_cmd, "--version"], capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"Error: {cli_cmd} CLI not found. Please ensure '{cli_cmd}' is installed and in PATH")
+                sys.exit(1)
+        except FileNotFoundError:
             print(f"Error: {cli_cmd} CLI not found. Please ensure '{cli_cmd}' is installed and in PATH")
             sys.exit(1)
-    except FileNotFoundError:
-        print(f"Error: {cli_cmd} CLI not found. Please ensure '{cli_cmd}' is installed and in PATH")
-        sys.exit(1)
+
+    test_signal_mode_explicit = "--test-signal-mode" in raw_argv
+    retry_policy_explicit = "--retry-policy" in raw_argv
+    enforce_tdd_test_first_explicit = "--enforce-tdd-test-first" in raw_argv
+    graph_guard_mode_explicit = "--graph-guard-mode" in raw_argv
+    strict_tdd_evidence_explicit = "--strict-tdd-evidence" in raw_argv
+    test_change_policy_explicit = "--test-change-policy" in raw_argv
+    strict_tdd_infra_policy_explicit = "--strict-tdd-infra-policy" in raw_argv
+    strict_tdd_infra_retry_budget_explicit = "--strict-tdd-infra-retry-budget" in raw_argv
+    indexed_signal_mode_explicit = "--indexed-signal-mode" in raw_argv
+    step_limit_explicit = "--step-limit" in raw_argv
+    max_fix_iterations_explicit = "--max-fix-iterations" in raw_argv
+
+    # Keep standalone CLI behavior aligned with benchmark graph profile defaults
+    # unless explicitly overridden.
+    use_graph_profile = (
+        args.graphrag_tdd_profile == "on"
+        and backend == "qwen-mini"
+        and args.tdd
+        and not args.no_graphrag
+    )
+    effective_step_limit = args.step_limit
+    effective_max_fix_iterations = args.max_fix_iterations
+    effective_test_signal_mode = args.test_signal_mode
+    effective_retry_policy = args.retry_policy
+    effective_enforce_tdd_test_first = args.enforce_tdd_test_first
+    effective_graph_guard_mode = args.graph_guard_mode
+    effective_strict_tdd_evidence = args.strict_tdd_evidence
+    effective_test_change_policy = args.test_change_policy
+    effective_strict_tdd_infra_policy = args.strict_tdd_infra_policy
+    effective_strict_tdd_infra_retry_budget = args.strict_tdd_infra_retry_budget
+    effective_indexed_signal_mode = args.indexed_signal_mode
+    if use_graph_profile and not step_limit_explicit:
+        effective_step_limit = 40
+    if use_graph_profile and not max_fix_iterations_explicit:
+        effective_max_fix_iterations = 1
+    if use_graph_profile and not test_signal_mode_explicit:
+        effective_test_signal_mode = "soft"
+    if use_graph_profile and not retry_policy_explicit:
+        effective_retry_policy = "adaptive"
+    if use_graph_profile and not enforce_tdd_test_first_explicit:
+        effective_enforce_tdd_test_first = "off"
+    if use_graph_profile and not graph_guard_mode_explicit:
+        effective_graph_guard_mode = "either"
+    if use_graph_profile and not strict_tdd_evidence_explicit:
+        effective_strict_tdd_evidence = "on"
+    if use_graph_profile and not test_change_policy_explicit:
+        effective_test_change_policy = "repo_tests_only"
+    if use_graph_profile and not strict_tdd_infra_policy_explicit:
+        effective_strict_tdd_infra_policy = "fail_open"
+    if use_graph_profile and not strict_tdd_infra_retry_budget_explicit:
+        effective_strict_tdd_infra_retry_budget = 2
+    if use_graph_profile and not indexed_signal_mode_explicit:
+        effective_indexed_signal_mode = "successful_query"
 
     agent = GraphRAGCodeSWEAgent(
         prompt_template=args.prompt_template,
@@ -826,7 +1093,28 @@ def main():
         impact_threshold=args.impact_threshold,
         max_impacted_tests=args.max_impacted_tests,
         mcp_server_url=args.mcp_server_url,
+        graphrag_tool_mode=args.graphrag_tool_mode,
+        graphrag_tdd_profile=(args.graphrag_tdd_profile == "on"),
+        max_attempts=args.max_attempts,
+        step_limit=effective_step_limit,
+        loop_policy=args.loop_policy,
+        max_fix_iterations=effective_max_fix_iterations,
         patch_compile_gate=(None if args.patch_compile_gate is None else args.patch_compile_gate == "on"),
+        test_signal_mode=effective_test_signal_mode,
+        retry_policy=effective_retry_policy,
+        enforce_tdd_test_first=(
+            None if effective_enforce_tdd_test_first is None
+            else effective_enforce_tdd_test_first == "on"
+        ),
+        graph_guard_mode=effective_graph_guard_mode,
+        strict_tdd_evidence=(
+            None if effective_strict_tdd_evidence is None
+            else effective_strict_tdd_evidence == "on"
+        ),
+        test_change_policy=effective_test_change_policy,
+        strict_tdd_infra_policy=effective_strict_tdd_infra_policy,
+        strict_tdd_infra_retry_budget=effective_strict_tdd_infra_retry_budget,
+        indexed_signal_mode=effective_indexed_signal_mode,
     )
 
     try:

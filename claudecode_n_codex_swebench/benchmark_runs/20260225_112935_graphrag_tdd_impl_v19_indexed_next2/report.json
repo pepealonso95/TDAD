@@ -1,0 +1,70 @@
+{
+  "run_name": "graphrag_tdd_impl_v19_indexed_next2",
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "timestamp": "2026-02-25T11:47:47.430485",
+  "instance_count": 2,
+  "instance_ids": [
+    "astropy__astropy-13033",
+    "astropy__astropy-13236"
+  ],
+  "variants": [
+    {
+      "name": "graphrag_tdd",
+      "predictions_file": "benchmark_runs/20260225_112935_graphrag_tdd_impl_v19_indexed_next2/predictions/graphrag_tdd.jsonl",
+      "eval_file": "benchmark_runs/20260225_112935_graphrag_tdd_impl_v19_indexed_next2/evaluations/graphrag_tdd.eval.json",
+      "total_time_s": 964.4305860996246,
+      "generation_count": 2,
+      "empty_count": 0,
+      "resolved_count": 1,
+      "unresolved_count": 1,
+      "eval_ran": true,
+      "loop_abort_count": 1,
+      "avg_attempts_used": 2.5,
+      "avg_f2p_pass_rate": 0.0,
+      "avg_p2p_smoke_failures": 10.0,
+      "clean_resolution_count": 0,
+      "instances": [
+        {
+          "instance_id": "astropy__astropy-13033",
+          "patch_chars": 983,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 391.7183520793915,
+          "resolved": null,
+          "attempts_used": 2,
+          "loop_abort_reason": "",
+          "f2p_pass_rate": 0.0,
+          "p2p_smoke_failures": 10,
+          "clean_resolution": null,
+          "patch_gate_valid": true,
+          "patch_gate_reason": "ok",
+          "patch_gate_severity": "info",
+          "test_signal_reliable": false,
+          "f2p_reliable": false,
+          "p2p_reliable": false,
+          "changed_lines_total": 7
+        },
+        {
+          "instance_id": "astropy__astropy-13236",
+          "patch_chars": 799,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 572.7110412120819,
+          "resolved": null,
+          "attempts_used": 3,
+          "loop_abort_reason": "no_diff_streak:8",
+          "f2p_pass_rate": 0.0,
+          "p2p_smoke_failures": 10,
+          "clean_resolution": null,
+          "patch_gate_valid": true,
+          "patch_gate_reason": "ok",
+          "patch_gate_severity": "info",
+          "test_signal_reliable": false,
+          "f2p_reliable": false,
+          "p2p_reliable": false,
+          "changed_lines_total": 7
+        }
+      ]
+    }
+  ]
+}

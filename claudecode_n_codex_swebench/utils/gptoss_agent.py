@@ -1,5 +1,5 @@
 """
-Simple agent loop for GPT-OSS using Ollama API directly.
+Simple agent loop for GPT-OSS using a local OpenAI-compatible API directly.
 
 This implements a basic ReAct-style agent that can:
 - Read files
@@ -18,19 +18,34 @@ import time
 from typing import Dict, List, Optional, Tuple
 import requests
 
-class GPTOSSAgent:
-    """Simple agent that uses Ollama API with tool-calling for GPT-OSS."""
+from .local_model_backend import ensure_local_backend_ready, resolve_qwen_local_backend
 
-    def __init__(self, model: str = "gpt-oss:20b", base_url: str = "http://localhost:11434"):
-        self.model = model
-        self.base_url = base_url
-        self.api_url = f"{base_url}/api/chat"
+class GPTOSSAgent:
+    """Simple agent that uses the configured local backend for GPT-OSS."""
+
+    def __init__(self, model: str = "gpt-oss:20b", base_url: str | None = None):
+        self.backend = resolve_qwen_local_backend(
+            prefix="GPTOSS",
+            explicit_model=model,
+            default_model="gpt-oss:20b",
+        )
+        if base_url:
+            self.backend = type(self.backend)(
+                provider=self.backend.provider,
+                provider_label=self.backend.provider_label,
+                model_name=self.backend.model_name,
+                litellm_model_name=self.backend.litellm_model_name,
+                api_base=base_url,
+                api_key=self.backend.api_key,
+            )
+        ensure_local_backend_ready(self.backend, prefix="GPTOSS")
+        self.model = self.backend.model_name
         self.conversation_history = []
         self.max_iterations = 20  # Prevent infinite loops
         self.max_retries = 3  # Retry on API errors
 
-    def _call_ollama(self, messages: List[Dict], retry_count: int = 0) -> str:
-        """Call Ollama API and get response with retry logic.
+    def _call_model_api(self, messages: List[Dict], retry_count: int = 0) -> str:
+        """Call the configured local API and get response with retry logic.
 
         GPT-OSS requires specific inference parameters:
         - temperature=1.0, top_p=1.0, top_k=0
@@ -39,27 +54,53 @@ class GPTOSSAgent:
         total_chars = sum(len(str(msg.get("content", ""))) for msg in messages)
         print(f"  📊 Conversation: {len(messages)} messages, {total_chars} chars")
 
-        payload = {
-            "model": self.model,
-            "messages": messages,
-            "stream": False,
-            "options": {
-                # GPT-OSS specific parameters from Unsloth docs
+        if self.backend.provider == "ollama":
+            payload = {
+                "model": self.model,
+                "messages": messages,
+                "stream": False,
+                "options": {
+                    "temperature": 1.0,
+                    "top_p": 1.0,
+                    "top_k": 0,
+                    "num_predict": 2048,
+                    "num_ctx": 16384,
+                    "num_batch": 256,
+                },
+            }
+            request_kwargs = {
+                "url": self.backend.ollama_chat_url,
+                "json": payload,
+                "timeout": 300,
+            }
+        else:
+            payload = {
+                "model": self.model,
+                "messages": messages,
+                "stream": False,
                 "temperature": 1.0,
                 "top_p": 1.0,
                 "top_k": 0,
-                "num_predict": 2048,  # Limit response length
-                "num_ctx": 16384,  # Context window (GPT-OSS supports 16K+)
-                "num_batch": 256,  # Batch size for memory efficiency
+                "max_tokens": 2048,
             }
-        }
+            request_kwargs = {
+                "url": self.backend.chat_completions_url,
+                "headers": self.backend.build_request_headers(),
+                "json": payload,
+                "timeout": 300,
+            }
 
         try:
-            response = requests.post(self.api_url, json=payload, timeout=300)
+            response = requests.post(**request_kwargs)
             response.raise_for_status()
 
             result = response.json()
-            return result["message"]["content"]
+            if self.backend.provider == "ollama":
+                message = result.get("message", {}) or {}
+                return message.get("content", "") or ""
+            choices = result.get("choices") or []
+            message = choices[0].get("message", {}) if choices else {}
+            return message.get("content", "") or ""
 
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 500 and retry_count < self.max_retries:
@@ -67,7 +108,7 @@ class GPTOSSAgent:
                 wait_time = 2 ** retry_count
                 print(f"  ⚠️  API error 500, retrying in {wait_time}s... (attempt {retry_count + 1}/{self.max_retries})")
                 time.sleep(wait_time)
-                return self._call_ollama(messages, retry_count + 1)
+                return self._call_model_api(messages, retry_count + 1)
             else:
                 raise
 
@@ -296,7 +337,7 @@ Your task:
                 messages = self._apply_sliding_window(messages, max_pairs=4)
 
                 # Get response from GPT-OSS
-                response = self._call_ollama(messages)
+                response = self._call_model_api(messages)
                 print(f"GPT-OSS: {response[:500]}..." if len(response) > 500 else f"GPT-OSS: {response}")
 
                 # Add to conversation

@@ -1,0 +1,33 @@
+{
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "variants": [
+    {
+      "name": "graphrag_tdd",
+      "backend": "qwen-mini",
+      "tdd_mode": true,
+      "use_graphrag": true,
+      "tdd_prompt_profile": false,
+      "graphrag_tdd_profile": true
+    }
+  ],
+  "limit": null,
+  "instance_ids": [
+    "astropy__astropy-14182"
+  ],
+  "skip_eval": false,
+  "max_workers": 2,
+  "run_name": "graphrag_tdd_impl_v19_indexed_first10_missing_firstonly",
+  "max_attempts": 3,
+  "step_limit": 30,
+  "loop_policy": "strict",
+  "max_fix_iterations": 0,
+  "patch_compile_gate": "on",
+  "test_signal_mode": "hard",
+  "retry_policy": "fixed",
+  "enforce_tdd_test_first": "on",
+  "test_signal_mode_explicit": false,
+  "retry_policy_explicit": false,
+  "enforce_tdd_test_first_explicit": false,
+  "step_limit_explicit": false,
+  "max_fix_iterations_explicit": false
+}

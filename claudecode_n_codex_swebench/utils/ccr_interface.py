@@ -5,7 +5,7 @@ CCR allows using local models like Qwen3 through the Claude Code interface.
 Requires:
 - npm install -g @musistudio/claude-code-router
 - ~/.claude-code-router/config.json configured for Ollama
-- Ollama running with qwen3-coder:30b (or configured model)
+- Ollama running with qwen3.5:35b (or configured model)
 """
 
 import os

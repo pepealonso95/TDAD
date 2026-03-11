@@ -1,0 +1,49 @@
+{
+  "run_name": "graphrag_tdd_next4_retry2_cap20m_django_django_10097",
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "timestamp": "2026-02-27T16:05:08.975587",
+  "instance_count": 1,
+  "instance_ids": [
+    "django__django-10097"
+  ],
+  "variants": [
+    {
+      "name": "graphrag_tdd",
+      "predictions_file": "benchmark_runs/20260227_154954_graphrag_tdd_next4_retry2_cap20m_django_django_10097/predictions/graphrag_tdd.jsonl",
+      "eval_file": "",
+      "total_time_s": 913.2228629589081,
+      "generation_count": 1,
+      "empty_count": 0,
+      "resolved_count": 0,
+      "unresolved_count": 0,
+      "eval_ran": false,
+      "loop_abort_count": 1,
+      "avg_attempts_used": 3.0,
+      "avg_f2p_pass_rate": 0.0,
+      "avg_p2p_smoke_failures": 10.0,
+      "clean_resolution_count": 0,
+      "instances": [
+        {
+          "instance_id": "django__django-10097",
+          "patch_chars": 598,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 913.2222511768341,
+          "resolved": null,
+          "attempts_used": 3,
+          "loop_abort_reason": "no_diff_streak:12",
+          "f2p_pass_rate": 0.0,
+          "p2p_smoke_failures": 10,
+          "clean_resolution": null,
+          "patch_gate_valid": true,
+          "patch_gate_reason": "ok",
+          "patch_gate_severity": "info",
+          "test_signal_reliable": true,
+          "f2p_reliable": true,
+          "p2p_reliable": true,
+          "changed_lines_total": 3
+        }
+      ]
+    }
+  ]
+}

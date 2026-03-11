@@ -1,0 +1,113 @@
+{
+  "run_name": "tdd_prompt_retryfix_v6_compilefail_retry_smoke10_part2",
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "timestamp": "2026-02-21T02:07:19.742144",
+  "instance_count": 5,
+  "instance_ids": [
+    "astropy__astropy-13579",
+    "astropy__astropy-13977",
+    "astropy__astropy-14096",
+    "astropy__astropy-14182",
+    "astropy__astropy-14309"
+  ],
+  "variants": [
+    {
+      "name": "tdd_prompt",
+      "predictions_file": "benchmark_runs/20260221_012252_tdd_prompt_retryfix_v6_compilefail_retry_smoke10_part2/predictions/tdd_prompt.jsonl",
+      "eval_file": "benchmark_runs/20260221_012252_tdd_prompt_retryfix_v6_compilefail_retry_smoke10_part2/evaluations/tdd_prompt.eval.json",
+      "total_time_s": 2436.945914030075,
+      "generation_count": 4,
+      "empty_count": 1,
+      "resolved_count": 1,
+      "unresolved_count": 3,
+      "eval_ran": true,
+      "loop_abort_count": 2,
+      "avg_attempts_used": 2.2,
+      "avg_f2p_pass_rate": 0.0,
+      "avg_p2p_smoke_failures": 9.8,
+      "clean_resolution_count": 0,
+      "instances": [
+        {
+          "instance_id": "astropy__astropy-13579",
+          "patch_chars": 1603,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 242.02993512153625,
+          "resolved": null,
+          "attempts_used": 1,
+          "loop_abort_reason": "",
+          "f2p_pass_rate": 0.0,
+          "p2p_smoke_failures": 10,
+          "clean_resolution": null,
+          "patch_gate_valid": true,
+          "patch_gate_reason": "ok",
+          "patch_gate_severity": "info"
+        },
+        {
+          "instance_id": "astropy__astropy-13977",
+          "patch_chars": 796,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 688.0153591632843,
+          "resolved": null,
+          "attempts_used": 3,
+          "loop_abort_reason": "",
+          "f2p_pass_rate": 0.0,
+          "p2p_smoke_failures": 10,
+          "clean_resolution": null,
+          "patch_gate_valid": true,
+          "patch_gate_reason": "ok",
+          "patch_gate_severity": "info"
+        },
+        {
+          "instance_id": "astropy__astropy-14096",
+          "patch_chars": 0,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 541.2264189720154,
+          "resolved": null,
+          "attempts_used": 3,
+          "loop_abort_reason": "",
+          "f2p_pass_rate": 0.0,
+          "p2p_smoke_failures": 10,
+          "clean_resolution": null,
+          "patch_gate_valid": false,
+          "patch_gate_reason": "empty_diff",
+          "patch_gate_severity": "fail"
+        },
+        {
+          "instance_id": "astropy__astropy-14182",
+          "patch_chars": 624,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 758.7387750148773,
+          "resolved": null,
+          "attempts_used": 2,
+          "loop_abort_reason": "no_diff_streak:13",
+          "f2p_pass_rate": 0.0,
+          "p2p_smoke_failures": 9,
+          "clean_resolution": null,
+          "patch_gate_valid": true,
+          "patch_gate_reason": "ok",
+          "patch_gate_severity": "info"
+        },
+        {
+          "instance_id": "astropy__astropy-14309",
+          "patch_chars": 558,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 206.93253779411316,
+          "resolved": null,
+          "attempts_used": 2,
+          "loop_abort_reason": "no_diff_streak:8",
+          "f2p_pass_rate": 0.0,
+          "p2p_smoke_failures": 10,
+          "clean_resolution": null,
+          "patch_gate_valid": true,
+          "patch_gate_reason": "ok",
+          "patch_gate_severity": "info"
+        }
+      ]
+    }
+  ]
+}

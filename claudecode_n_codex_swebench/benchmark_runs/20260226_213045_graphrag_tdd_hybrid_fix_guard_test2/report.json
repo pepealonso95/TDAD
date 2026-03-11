@@ -1,0 +1,49 @@
+{
+  "run_name": "graphrag_tdd_hybrid_fix_guard_test2",
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "timestamp": "2026-02-26T21:36:09.060249",
+  "instance_count": 1,
+  "instance_ids": [
+    "astropy__astropy-13033"
+  ],
+  "variants": [
+    {
+      "name": "graphrag_tdd",
+      "predictions_file": "benchmark_runs/20260226_213045_graphrag_tdd_hybrid_fix_guard_test2/predictions/graphrag_tdd.jsonl",
+      "eval_file": "benchmark_runs/20260226_213045_graphrag_tdd_hybrid_fix_guard_test2/evaluations/graphrag_tdd.eval.json",
+      "total_time_s": 191.58397483825684,
+      "generation_count": 1,
+      "empty_count": 0,
+      "resolved_count": 0,
+      "unresolved_count": 1,
+      "eval_ran": true,
+      "loop_abort_count": 0,
+      "avg_attempts_used": 1.0,
+      "avg_f2p_pass_rate": 0.0,
+      "avg_p2p_smoke_failures": 10.0,
+      "clean_resolution_count": 0,
+      "instances": [
+        {
+          "instance_id": "astropy__astropy-13033",
+          "patch_chars": 911,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 191.58334803581238,
+          "resolved": null,
+          "attempts_used": 1,
+          "loop_abort_reason": "",
+          "f2p_pass_rate": 0.0,
+          "p2p_smoke_failures": 10,
+          "clean_resolution": null,
+          "patch_gate_valid": true,
+          "patch_gate_reason": "ok",
+          "patch_gate_severity": "info",
+          "test_signal_reliable": false,
+          "f2p_reliable": false,
+          "p2p_reliable": false,
+          "changed_lines_total": 5
+        }
+      ]
+    }
+  ]
+}

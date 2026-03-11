@@ -14,8 +14,14 @@ import re
 from datetime import datetime, timedelta
 from pathlib import Path
 import jsonlines
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 import logging
+
+from utils.eval_runtime import (
+    cleanup_stale_swebench_eval_containers,
+    default_eval_worker_count,
+    describe_eval_capacity,
+)
 
 class PredictionEvaluator:
     def __init__(self):
@@ -149,7 +155,7 @@ class PredictionEvaluator:
         return "unknown"
     
     def evaluate_file(self, prediction_file: Path, dataset_name="princeton-nlp/SWE-bench_Lite",
-                      max_workers=2, update_log=True, force=False) -> Tuple[float, float]:
+                      max_workers=2, update_log=True, force=False) -> Tuple[Optional[float], float, str, Optional[str]]:
         """Evaluate a single prediction file"""
         print(f"\n{'='*70}")
         print(f"Evaluating: {prediction_file.name}")
@@ -167,7 +173,8 @@ class PredictionEvaluator:
                 except EOFError:
                     response = 'n'
                 if response != 'y':
-                    return None, 0
+                    print("Skipping re-evaluation.")
+                    return None, 0, "skipped", None
         
         # Prepare for evaluation
         eval_file = str(prediction_file).replace('.jsonl', '_eval.jsonl')
@@ -193,6 +200,9 @@ class PredictionEvaluator:
         # Run evaluation
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         run_id = f"eval_{timestamp}"
+        max_workers = max(1, int(max_workers or default_eval_worker_count(instance_count=len(predictions))))
+        capacity = describe_eval_capacity(instance_count=len(predictions))
+        removed_containers = cleanup_stale_swebench_eval_containers(current_run_id=run_id)
         
         cmd = [
             sys.executable, "-m", "swebench.harness.run_evaluation",
@@ -207,6 +217,13 @@ class PredictionEvaluator:
         ]
         
         print(f"\n🔬 Running Docker evaluation...")
+        print(
+            f"Eval capacity: workers={max_workers} cpu_total={capacity['cpu_total']} "
+            f"cpu_target={capacity['cpu_target']} mem_gib={capacity['mem_total_gib']} "
+            f"mem_target={capacity['mem_target']}"
+        )
+        if removed_containers:
+            print(f"Removed stale SWE-bench eval containers: {', '.join(removed_containers)}")
         print(f"Command: {' '.join(cmd)}")
         
         try:
@@ -227,6 +244,11 @@ class PredictionEvaluator:
             
             process.wait()
             eval_time = time.time() - start_time
+            if process.returncode != 0:
+                print(
+                    f"\n❌ Evaluation command failed with exit code {process.returncode}."
+                )
+                return None, eval_time, "failed", None
 
             json_path = self.eval_results_dir / f"{model_name}.{run_id}.json"
             resolved = total = None
@@ -251,31 +273,33 @@ class PredictionEvaluator:
                 resolved = None
                 total = None
                 for pattern in patterns:
-                    match = re.search(pattern, output_text)
-                    if match:
-                        if '%' in pattern:
-                            score = float(match.group(1))
-                            print(f"\n✅ Evaluation Score: {score:.2f}%")
-                            return score, eval_time
-                        else:
-                            resolved = int(match.group(1))
-                            total = int(match.group(2)) if len(match.groups()) > 1 else len(predictions)
-                            break
+                        match = re.search(pattern, output_text)
+                        if match:
+                            if '%' in pattern:
+                                score = float(match.group(1))
+                                print(f"\n✅ Evaluation Score: {score:.2f}%")
+                                return score, eval_time, "success", None
+                            else:
+                                resolved = int(match.group(1))
+                                total = int(match.group(2)) if len(match.groups()) > 1 else len(predictions)
+                                break
                 if resolved is None or total is None:
                     print("\n⚠️ Could not parse evaluation results")
-                    return None, eval_time
+                    return None, eval_time, "failed", None
 
             score = (resolved / total) * 100 if total else 0
             print(f"\n✅ Evaluation Score: {score:.2f}% ({resolved}/{total} issues fixed)")
+            if json_path.exists():
+                print(f"EVAL_JSON_PATH: {json_path.resolve()}")
 
             if update_log:
                 self.update_log_entry(prediction_file, score, eval_time)
 
-            return score, eval_time
+            return score, eval_time, "success", str(json_path.resolve()) if json_path.exists() else None
                 
         except Exception as e:
             print(f"\n❌ Evaluation error: {e}")
-            return None, 0
+            return None, 0, "failed", None
     
     def update_log_entry(self, prediction_file: Path, eval_score: float, eval_time: float):
         """Update log file with evaluation results"""
@@ -339,8 +363,8 @@ def main():
     # Other options
     parser.add_argument("--dataset", default="princeton-nlp/SWE-bench_Lite",
                        help="Dataset name")
-    parser.add_argument("--max-workers", type=int, default=2,
-                       help="Max parallel Docker containers")
+    parser.add_argument("--max-workers", type=int, default=None,
+                       help="Max parallel Docker containers (default: auto, based on CPU count)")
     parser.add_argument("--dry-run", action="store_true",
                        help="Show what would be evaluated without running")
     parser.add_argument("--no-update-log", action="store_true",
@@ -441,10 +465,12 @@ def main():
     
     # Evaluate each file
     results = []
+    failed_files = []
+    skipped_files = []
     for i, (pred_file, timestamp, count) in enumerate(selected_files, 1):
         print(f"\n[{i}/{len(selected_files)}] Processing {pred_file.name}")
         
-        score, eval_time = evaluator.evaluate_file(
+        score, eval_time, status, _eval_json_path = evaluator.evaluate_file(
             pred_file,
             args.dataset,
             args.max_workers,
@@ -452,8 +478,12 @@ def main():
             force=args.force
         )
         
-        if score is not None:
+        if status == "success" and score is not None:
             results.append((pred_file.name, count, score, eval_time))
+        elif status == "failed":
+            failed_files.append(pred_file.name)
+        elif status == "skipped":
+            skipped_files.append(pred_file.name)
     
     # Summary
     if results:
@@ -469,6 +499,17 @@ def main():
             total_time = sum(r[3] for r in results)
             print(f"\nAverage score: {avg_score:.2f}%")
             print(f"Total evaluation time: {total_time:.1f}s")
+
+    if failed_files:
+        print("\n❌ Evaluation failed for:")
+        for name in failed_files:
+            print(f"  - {name}")
+        sys.exit(1)
+
+    if skipped_files:
+        print("\n⏭️ Evaluation skipped for:")
+        for name in skipped_files:
+            print(f"  - {name}")
 
 if __name__ == "__main__":
     main()

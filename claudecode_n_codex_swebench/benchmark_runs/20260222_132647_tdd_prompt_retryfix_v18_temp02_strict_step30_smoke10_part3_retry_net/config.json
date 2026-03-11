@@ -1,0 +1,24 @@
+{
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "variants": [
+    {
+      "name": "tdd_prompt",
+      "backend": "qwen-mini",
+      "tdd_mode": true,
+      "use_graphrag": false,
+      "tdd_prompt_profile": true
+    }
+  ],
+  "limit": null,
+  "instance_ids": [
+    "astropy__astropy-14309"
+  ],
+  "skip_eval": false,
+  "max_workers": 2,
+  "run_name": "tdd_prompt_retryfix_v18_temp02_strict_step30_smoke10_part3_retry_net",
+  "max_attempts": 3,
+  "step_limit": 30,
+  "loop_policy": "strict",
+  "max_fix_iterations": 0,
+  "patch_compile_gate": "on"
+}

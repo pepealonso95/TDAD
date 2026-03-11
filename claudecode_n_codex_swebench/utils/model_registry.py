@@ -78,8 +78,13 @@ CODEX_EXPECTED = {
     "codex-4.2": {"min": 20, "max": 35, "typical": 28},
 }
 
-# Qwen models (Ollama-based)
+# Qwen models (default local runtime: llama.cpp / OpenAI-compatible)
 QWEN_MODELS: Dict[str, str] = {
+    "qwen3.5-35b": "qwen3.5:35b",
+    "qwen3.5:35b": "qwen3.5:35b",
+    "qwen3.5-coder-35b": "qwen3.5:35b",
+    "qwen3.5-coder:35b": "qwen3.5:35b",
+    "qwen3.5-coder": "qwen3.5:35b",
     "qwen3-coder-30b": "qwen3-coder:30b",
     "qwen3-coder:30b": "qwen3-coder:30b",
     "qwen3-coder": "qwen3-coder:30b",
@@ -90,41 +95,49 @@ QWEN_MODELS: Dict[str, str] = {
 }
 
 QWEN_DESCRIPTIONS = {
-    "qwen3-coder-30b": "Qwen 3 Coder 30B - Latest Qwen coding model",
-    "qwen3-coder": "Alias for Qwen 3 Coder 30B",
-    "qwen-latest": "Latest Qwen model available",
+    "qwen3.5-35b": "Qwen 3.5 35B - Local OpenAI-compatible alias",
+    "qwen3.5-coder-35b": "Compatibility alias for Qwen 3.5 35B",
+    "qwen3-coder-30b": "Qwen 3 Coder 30B - Current default local model",
+    "qwen3-coder": "Alias for current default Qwen coding model",
+    "qwen-latest": "Latest Qwen model alias",
 }
 
 QWEN_CATEGORIES = {
-    "Qwen Models": ["qwen3-coder-30b", "qwen3-coder"],
+    "Qwen Models": ["qwen3.5-35b", "qwen3-coder-30b", "qwen3-coder"],
     "Quick Aliases": ["best", "latest"],
 }
 
 QWEN_EXPECTED = {
+    "qwen3.5-35b": {"min": 20, "max": 34, "typical": 27},
     "qwen3-coder-30b": {"min": 15, "max": 30, "typical": 22},
 }
 
-# Qwen-Mini models (Mini-SWE-Agent + Ollama)
+# Qwen-Mini models (Mini-SWE-Agent + local OpenAI-compatible runtime)
 QWEN_MINI_MODELS: Dict[str, str] = {
     "qwen-mini": "qwen3-coder:30b",
+    "qwen3.5-mini": "qwen3.5:35b",
     "qwen3-mini": "qwen3-coder:30b",
+    "qwen-mini-30b": "qwen3-coder:30b",
     "mini": "qwen3-coder:30b",
     "latest": "qwen3-coder:30b",
 }
 
 QWEN_MINI_DESCRIPTIONS = {
-    "qwen-mini": "Qwen 30B via Mini-SWE-Agent + Ollama (proven 74% on SWE-bench)",
-    "qwen3-mini": "Alias for qwen-mini",
+    "qwen-mini": "Qwen 3 Coder 30B via Mini-SWE-Agent + llama.cpp/OpenAI-compatible runtime (default)",
+    "qwen3.5-mini": "Qwen 3.5 35B via explicit local alias",
+    "qwen3-mini": "Alias for qwen-mini default",
+    "qwen-mini-30b": "Explicit Qwen 3 Coder 30B alias",
     "mini": "Short alias for qwen-mini",
 }
 
 QWEN_MINI_CATEGORIES = {
-    "Qwen-Mini Models": ["qwen-mini", "qwen3-mini"],
+    "Qwen-Mini Models": ["qwen-mini", "qwen3.5-mini", "qwen-mini-30b", "qwen3-mini"],
     "Quick Aliases": ["mini", "latest"],
 }
 
 QWEN_MINI_EXPECTED = {
-    "qwen-mini": {"min": 40, "max": 75, "typical": 57},  # Based on mini-swe-agent's 74% benchmark
+    "qwen-mini": {"min": 40, "max": 78, "typical": 60},
+    "qwen-mini-30b": {"min": 40, "max": 75, "typical": 57},
 }
 
 

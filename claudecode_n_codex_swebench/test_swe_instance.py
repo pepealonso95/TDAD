@@ -3,7 +3,8 @@
 
 Uses the same configuration as qwen_mini_interface.py (default templates,
 correct cwd parameter, env vars, drop_params) so this script is a faithful
-standalone reproduction of what the full pipeline does.
+standalone reproduction of what the full pipeline does against the default
+local OpenAI-compatible llama.cpp endpoint.
 """
 
 import os
@@ -30,6 +31,7 @@ from utils.qwen_mini_interface import (
     TIMEOUT_TEMPLATE,
     DEFAULT_ENV_VARS,
 )
+from utils.local_model_backend import resolve_qwen_local_backend
 from code_swe_agent import load_cached_dataset
 
 os.environ["MSWEA_COST_TRACKING"] = "ignore_errors"
@@ -111,15 +113,18 @@ def main():
         print(f"Repository cloned to: {repo_path}")
         print()
 
-        # Create model — local Qwen 30B via Ollama
-        print("Creating Ollama model (qwen3-coder:30b)...")
+        # Create model — local llama.cpp/OpenAI-compatible endpoint
+        backend = resolve_qwen_local_backend(prefix="QWEN_MINI", default_model="qwen3-coder:30b")
+        print(f"Creating local {backend.provider_label} model...")
         model = get_model(
-            input_model_name="ollama_chat/qwen3-coder:30b",
+            input_model_name=backend.litellm_model_name,
             config={
-                "model_kwargs": {
-                    "api_base": "http://localhost:11434",
-                    "drop_params": True,
-                },
+                "model_kwargs": backend.build_litellm_kwargs(
+                    temperature=0.0,
+                    max_tokens=8192,
+                    timeout=1200,
+                    num_ctx=32768,
+                ),
                 "model_class": "litellm",
                 "cost_tracking": "ignore_errors",
             },

@@ -1,0 +1,1 @@
+{"instance_id": "astropy__astropy-12907", "model": "qwen-mini-graphrag", "prediction": "", "error": "No successful attempt", "graphrag_metadata": {"use_graphrag": true, "graph_built": false, "graph_build_time": 0, "impacted_tests_found": 0, "impact_analysis_time": 0, "changed_files": [], "test_efficiency_ratio": null}}

@@ -22,11 +22,13 @@ from utils.claude_interface import ClaudeCodeInterface
 from utils.codex_interface import CodexCodeInterface
 from utils.qwen_interface import QwenCodeInterface
 from utils.qwen_mini_interface import QwenMiniInterface
+from utils.qwen_mini_interface_tdd_prompt import QwenMiniInterfaceTDDPrompt
 from utils.gptoss_interface import GPTOSSCodeInterface
 from utils.ccr_interface import CCRCodeInterface
 from utils.prompt_formatter import PromptFormatter
 from utils.patch_extractor import PatchExtractor
 from utils.model_registry import get_model_name
+from utils.local_model_backend import set_local_backend_idle_if_owned
 
 
 DEFAULT_BACKEND = os.environ.get("CODE_SWE_BACKEND", "claude")
@@ -90,19 +92,27 @@ class CodeSWEAgent:
                  model: Optional[str] = None,
                  backend: str = DEFAULT_BACKEND,
                  tdd_mode: bool = False,
+                 tdd_prompt_profile: bool = False,
                  max_attempts: Optional[int] = None,
                  step_limit: Optional[int] = None,
                  loop_policy: Optional[str] = None,
                  max_fix_iterations: Optional[int] = None,
-                 patch_compile_gate: Optional[bool] = None):
+                 patch_compile_gate: Optional[bool] = None,
+                 test_signal_mode: Optional[str] = None,
+                 retry_policy: Optional[str] = None,
+                 enforce_tdd_test_first: Optional[bool] = None):
         self.backend = (backend or DEFAULT_BACKEND).lower()
         self.tdd_mode = tdd_mode
+        self.tdd_prompt_profile = tdd_prompt_profile
         if self.backend == "codex":
             self.interface = CodexCodeInterface()
         elif self.backend == "qwen":
             self.interface = QwenCodeInterface()
         elif self.backend == "qwen-mini":
-            self.interface = QwenMiniInterface()
+            if self.tdd_prompt_profile:
+                self.interface = QwenMiniInterfaceTDDPrompt()
+            else:
+                self.interface = QwenMiniInterface()
         elif self.backend == "gptoss":
             self.interface = GPTOSSCodeInterface()
         elif self.backend == "ccr":
@@ -123,6 +133,9 @@ class CodeSWEAgent:
         self.loop_policy = loop_policy
         self.max_fix_iterations = max_fix_iterations
         self.patch_compile_gate = patch_compile_gate
+        self.test_signal_mode = test_signal_mode
+        self.retry_policy = retry_policy
+        self.enforce_tdd_test_first = enforce_tdd_test_first
         if self.backend == "qwen-mini":
             if self.max_attempts is not None:
                 self.interface.max_attempts = self.max_attempts
@@ -134,10 +147,18 @@ class CodeSWEAgent:
                 self.interface.max_fix_iterations = self.max_fix_iterations
             if self.patch_compile_gate is not None:
                 self.interface.patch_compile_gate = self.patch_compile_gate
+            if self.test_signal_mode is not None:
+                self.interface.test_signal_mode = self.test_signal_mode
+            if self.retry_policy is not None:
+                self.interface.retry_policy = self.retry_policy
+            if self.enforce_tdd_test_first is not None:
+                self.interface.enforce_tdd_test_first = self.enforce_tdd_test_first
 
         # Resolve model name from alias
         self.model = get_model_name(model, self.backend) if model else None
         self.model_alias = model  # Keep original alias for logging
+        if self.backend == "qwen-mini" and hasattr(self.interface, "set_model_name"):
+            self.interface.set_model_name(self.model)
 
         # Create directories if they don't exist
         self.results_dir.mkdir(exist_ok=True)
@@ -163,6 +184,27 @@ class CodeSWEAgent:
             except json.JSONDecodeError:
                 return []
         return []
+
+    def cleanup(self):
+        """Release external runtime resources owned by this agent."""
+        cleanup_fn = getattr(self.interface, "cleanup", None)
+        if callable(cleanup_fn):
+            cleanup_fn()
+
+        local_backend = getattr(self.interface, "local_backend", None)
+        if local_backend is None:
+            return
+
+        prefix = None
+        if self.backend == "qwen-mini":
+            prefix = "QWEN_MINI"
+        elif self.backend == "qwen":
+            prefix = "QWEN"
+        elif self.backend == "gptoss":
+            prefix = "GPTOSS"
+
+        if prefix:
+            set_local_backend_idle_if_owned(local_backend, prefix=prefix)
 
     def setup_repository(self, instance: Dict) -> Optional[str]:
         """Set up a repository for testing."""
@@ -221,6 +263,19 @@ class CodeSWEAgent:
                 print(f"Warning: Failed to return to original directory: {chdir_error}")
             return None
             
+    def recover_timeout_prediction(self, instance_id: str, worker_pid: int) -> Optional[Dict]:
+        """Recover best-effort prediction from interface timeout checkpoint, when supported."""
+        recover_fn = getattr(self.interface, "recover_timeout_prediction", None)
+        if not callable(recover_fn):
+            return None
+        try:
+            recovered = recover_fn(instance_id=instance_id, worker_pid=worker_pid)
+        except TypeError:
+            recovered = recover_fn(instance_id, worker_pid)
+        if not isinstance(recovered, dict):
+            return None
+        return recovered
+
     def process_instance(self, instance: Dict) -> Dict:
         """Process a single SWE-bench instance."""
         instance_id = instance["instance_id"]
@@ -232,7 +287,8 @@ class CodeSWEAgent:
         if self.backend == "qwen-mini":
             try:
                 tdd_info = " (TDD mode)" if self.tdd_mode else ""
-                print(f"Running Qwen-Mini (Mini-SWE-Agent + Ollama){tdd_info}...")
+                backend_label = getattr(self.interface, "describe_local_backend", lambda: "local LLM")()
+                print(f"Running Qwen-Mini (Mini-SWE-Agent + {backend_label}){tdd_info}...")
                 fail_to_pass_tests = self._parse_test_list(instance.get("FAIL_TO_PASS"))
                 pass_to_pass_tests = self._parse_test_list(instance.get("PASS_TO_PASS"))
 
@@ -263,11 +319,15 @@ class CodeSWEAgent:
                     "attempts_used": result.get("attempts_used"),
                     "loop_abort_reason": result.get("loop_abort_reason"),
                     "f2p_pass_rate": result.get("f2p_pass_rate"),
+                    "f2p_reliable": result.get("f2p_reliable"),
                     "p2p_smoke_failures": result.get("p2p_smoke_failures"),
+                    "p2p_reliable": result.get("p2p_reliable"),
+                    "test_signal_reliable": result.get("test_signal_reliable"),
                     "clean_resolution": result.get("clean_resolution"),
                     "patch_gate_valid": result.get("patch_gate_valid"),
                     "patch_gate_reason": result.get("patch_gate_reason"),
                     "patch_gate_severity": result.get("patch_gate_severity"),
+                    "changed_lines_total": result.get("changed_lines_total"),
                     "attempt_summaries": result.get("attempt_summaries", []),
                 }
             except Exception as e:

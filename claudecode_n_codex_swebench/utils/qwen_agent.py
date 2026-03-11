@@ -1,5 +1,5 @@
 """
-Simple agent loop for Qwen using Ollama API directly.
+Simple agent loop for Qwen using a local OpenAI-compatible API directly.
 
 This implements a basic ReAct-style agent that can:
 - Read files
@@ -18,19 +18,35 @@ import time
 from typing import Dict, List, Optional, Tuple
 import requests
 
-class QwenAgent:
-    """Simple agent that uses Ollama API with tool-calling for Qwen."""
+from .local_model_backend import ensure_local_backend_ready, resolve_qwen_local_backend
 
-    def __init__(self, model: str = "qwen3-coder:30b", base_url: str = "http://localhost:11434"):
-        self.model = model
-        self.base_url = base_url
-        self.api_url = f"{base_url}/api/chat"
+class QwenAgent:
+    """Simple agent that uses the configured local Qwen backend."""
+
+    def __init__(self, model: str = "qwen3.5:35b", base_url: str | None = None):
+        self.backend = resolve_qwen_local_backend(
+            prefix="QWEN",
+            explicit_model=model,
+            default_model="qwen3.5:35b",
+        )
+        if base_url:
+            self.backend = type(self.backend)(
+                provider=self.backend.provider,
+                provider_label=self.backend.provider_label,
+                model_name=self.backend.model_name,
+                litellm_model_name=self.backend.litellm_model_name,
+                api_base=base_url,
+                api_key=self.backend.api_key,
+            )
+        ensure_local_backend_ready(self.backend, prefix="QWEN")
+        self.model = self.backend.model_name
+        self.base_url = self.backend.api_base
         self.conversation_history = []
         self.max_iterations = 20  # Prevent infinite loops
         self.max_retries = 5  # Retry on API errors (increased for large contexts)
 
     def _get_tool_definitions(self) -> List[Dict]:
-        """Get Ollama-compatible tool definitions for native function calling."""
+        """Get OpenAI-compatible tool definitions for native function calling."""
         return [
             {
                 "type": "function",
@@ -89,8 +105,8 @@ class QwenAgent:
             }
         ]
 
-    def _call_ollama(self, messages: List[Dict], retry_count: int = 0) -> Dict:
-        """Call Ollama API and get response with retry logic.
+    def _call_model_api(self, messages: List[Dict], retry_count: int = 0) -> Dict:
+        """Call the configured local model API and get response with retry logic.
 
         Returns the full message dict including content, thinking, and tool_calls.
         """
@@ -98,26 +114,49 @@ class QwenAgent:
         total_chars = sum(len(str(msg.get("content", ""))) for msg in messages)
         print(f"  📊 Conversation: {len(messages)} messages, {total_chars} chars")
 
-        payload = {
-            "model": self.model,
-            "messages": messages,
-            "stream": False,
-            "tools": self._get_tool_definitions(),  # Enable native function calling
-            "options": {
-                "temperature": 0.2,  # Lower temperature for more focused responses
-                "num_predict": 4096,  # Response length
-                "num_ctx": 262144,  # 256K context window
-                "num_batch": 512,  # Batch size for processing
+        if self.backend.provider == "ollama":
+            payload = {
+                "model": self.model,
+                "messages": messages,
+                "stream": False,
+                "tools": self._get_tool_definitions(),
+                "options": {
+                    "temperature": 0.2,
+                    "num_predict": 4096,
+                    "num_ctx": 262144,
+                    "num_batch": 512,
+                },
             }
-        }
+            request_kwargs = {
+                "url": self.backend.ollama_chat_url,
+                "json": payload,
+                "timeout": 600,
+            }
+        else:
+            payload = {
+                "model": self.model,
+                "messages": messages,
+                "stream": False,
+                "tools": self._get_tool_definitions(),
+                "temperature": 0.2,
+                "max_tokens": 4096,
+            }
+            request_kwargs = {
+                "url": self.backend.chat_completions_url,
+                "headers": self.backend.build_request_headers(),
+                "json": payload,
+                "timeout": 600,
+            }
 
         try:
-            response = requests.post(self.api_url, json=payload, timeout=600)  # 10 min timeout for large contexts
+            response = requests.post(**request_kwargs)
             response.raise_for_status()
 
             result = response.json()
-            # Return the full message dict, not just content
-            return result["message"]
+            if self.backend.provider == "ollama":
+                return result.get("message", {}) or {}
+            choices = result.get("choices") or []
+            return choices[0].get("message", {}) if choices else {}
 
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 500 and retry_count < self.max_retries:
@@ -125,7 +164,7 @@ class QwenAgent:
                 wait_time = 2 ** retry_count
                 print(f"  ⚠️  API error 500, retrying in {wait_time}s... (attempt {retry_count + 1}/{self.max_retries})")
                 time.sleep(wait_time)
-                return self._call_ollama(messages, retry_count + 1)
+                return self._call_model_api(messages, retry_count + 1)
             else:
                 raise
 
@@ -401,7 +440,7 @@ Your task:
                 messages = self._apply_sliding_window(messages, max_pairs=8)
 
                 # Get response from Qwen (returns full message dict)
-                message = self._call_ollama(messages)
+                message = self._call_model_api(messages)
 
                 # Extract content and thinking for display (Step 6)
                 content = message.get("content", "")

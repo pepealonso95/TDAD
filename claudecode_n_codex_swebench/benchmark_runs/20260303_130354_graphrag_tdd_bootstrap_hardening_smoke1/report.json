@@ -1,0 +1,66 @@
+{
+  "run_name": "graphrag_tdd_bootstrap_hardening_smoke1",
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "timestamp": "2026-03-03T13:04:15.179061",
+  "instance_count": 1,
+  "instance_ids": [
+    "astropy__astropy-12907"
+  ],
+  "variants": [
+    {
+      "name": "graphrag_tdd",
+      "predictions_file": "benchmark_runs/20260303_130354_graphrag_tdd_bootstrap_hardening_smoke1/predictions/graphrag_tdd.jsonl",
+      "eval_file": "benchmark_runs/20260303_130354_graphrag_tdd_bootstrap_hardening_smoke1/evaluations/graphrag_tdd.eval.json",
+      "total_time_s": 0.22327804565429688,
+      "generation_count": 0,
+      "empty_count": 1,
+      "resolved_count": 0,
+      "unresolved_count": 0,
+      "eval_ran": true,
+      "loop_abort_count": 0,
+      "avg_attempts_used": 0.0,
+      "avg_f2p_pass_rate": 0.0,
+      "avg_p2p_smoke_failures": 0.0,
+      "clean_resolution_count": 0,
+      "instances": [
+        {
+          "instance_id": "astropy__astropy-12907",
+          "patch_chars": 0,
+          "has_error": true,
+          "error_msg": "No successful attempt",
+          "elapsed_s": 0.22296619415283203,
+          "resolved": null,
+          "attempts_used": null,
+          "loop_abort_reason": "",
+          "f2p_pass_rate": null,
+          "p2p_smoke_failures": null,
+          "clean_resolution": null,
+          "patch_gate_valid": null,
+          "patch_gate_reason": "",
+          "patch_gate_severity": "",
+          "test_signal_reliable": null,
+          "f2p_reliable": null,
+          "p2p_reliable": null,
+          "changed_lines_total": null,
+          "graph_guard_mode": "",
+          "graph_guard_passed": null,
+          "graph_guard_reason": "",
+          "test_files_changed_count": 0,
+          "indexed_search_attempted": null,
+          "indexed_search_success": null,
+          "repo_test_changed": null,
+          "tdd_evidence_complete": null,
+          "tdd_evidence_reason": "",
+          "tdd_fail_open_applied": null,
+          "tdd_infra_reasons": [],
+          "repro_cmd_present": null,
+          "repro_failed_before_edit": null,
+          "verify_cmd_present": null,
+          "verify_pass_after_edit": null,
+          "smoke_cmd_present": null,
+          "smoke_pass_after_edit": null
+        }
+      ]
+    }
+  ]
+}

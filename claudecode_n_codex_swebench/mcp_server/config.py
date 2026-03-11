@@ -49,8 +49,24 @@ class AnalysisConfig(BaseModel):
     test_class_patterns: list[str] = ["Test*"]
 
     # Coverage
-    use_coverage: bool = True
+    use_coverage: bool = False
     coverage_threshold: float = 0.1  # Minimum 10% coverage to link
+    coverage_timeout_seconds: int = 600
+    coverage_fail_open: bool = True
+    # Bound coverage runtime/cost for large repositories.
+    coverage_max_test_files: int = 80  # 0 => all discovered test files
+    coverage_max_link_rows: int = 250000  # 0 => unlimited
+    coverage_test_sample_mode: str = "spread"  # "spread" or "head"
+    coverage_pytest_extra_args: str = ""
+    coverage_diff_max_tests: int = 200
+
+
+class GraphIndexConfig(BaseModel):
+    """Graph index build/performance configuration."""
+    workers: int = 4
+    node_batch_size: int = 1000
+    edge_batch_size: int = 2000
+    status_poll_interval_seconds: int = 2
 
 
 class Config:
@@ -61,6 +77,7 @@ class Config:
         self.neo4j = Neo4jConfig()
         self.embeddings = EmbeddingsConfig()
         self.analysis = AnalysisConfig()
+        self.graph_index = GraphIndexConfig()
 
         # Load from environment
         self._load_from_env()
@@ -95,6 +112,35 @@ class Config:
             self.embeddings.provider = provider
         if model := os.getenv("EMBEDDINGS_MODEL"):
             self.embeddings.model = model
+
+        if use_coverage := os.getenv("GRAPH_LINK_USE_COVERAGE"):
+            self.analysis.use_coverage = use_coverage.lower() in ("true", "1", "yes")
+        if coverage_threshold := os.getenv("GRAPH_COVERAGE_THRESHOLD"):
+            self.analysis.coverage_threshold = max(0.0, min(1.0, float(coverage_threshold)))
+        if coverage_timeout := os.getenv("GRAPH_COVERAGE_TIMEOUT_SECONDS"):
+            self.analysis.coverage_timeout_seconds = max(30, int(coverage_timeout))
+        if coverage_max_test_files := os.getenv("GRAPH_COVERAGE_MAX_TEST_FILES"):
+            self.analysis.coverage_max_test_files = max(0, int(coverage_max_test_files))
+        if coverage_max_link_rows := os.getenv("GRAPH_COVERAGE_MAX_LINK_ROWS"):
+            self.analysis.coverage_max_link_rows = max(0, int(coverage_max_link_rows))
+        if coverage_sample_mode := os.getenv("GRAPH_COVERAGE_TEST_SAMPLE_MODE"):
+            mode = coverage_sample_mode.strip().lower()
+            if mode in ("spread", "head"):
+                self.analysis.coverage_test_sample_mode = mode
+        if coverage_extra_args := os.getenv("GRAPH_COVERAGE_PYTEST_EXTRA_ARGS"):
+            self.analysis.coverage_pytest_extra_args = coverage_extra_args.strip()
+        if coverage_diff_max_tests := os.getenv("GRAPH_COVERAGE_DIFF_MAX_TESTS"):
+            self.analysis.coverage_diff_max_tests = max(1, int(coverage_diff_max_tests))
+
+        # Graph index performance tuning
+        if workers := os.getenv("GRAPH_INDEX_WORKERS"):
+            self.graph_index.workers = max(1, int(workers))
+        if node_batch := os.getenv("GRAPH_DB_BATCH_SIZE_NODES"):
+            self.graph_index.node_batch_size = max(100, int(node_batch))
+        if edge_batch := os.getenv("GRAPH_DB_BATCH_SIZE_EDGES"):
+            self.graph_index.edge_batch_size = max(100, int(edge_batch))
+        if poll_interval := os.getenv("GRAPH_STATUS_POLL_INTERVAL_SEC"):
+            self.graph_index.status_poll_interval_seconds = max(1, int(poll_interval))
 
 
 # Global config instance

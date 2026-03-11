@@ -1,0 +1,45 @@
+{
+  "run_name": "tdd_prompt_retryfix_v4_single_12907",
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "timestamp": "2026-02-20T17:17:15.578385",
+  "instance_count": 1,
+  "instance_ids": [
+    "astropy__astropy-12907"
+  ],
+  "variants": [
+    {
+      "name": "tdd_prompt",
+      "predictions_file": "benchmark_runs/20260220_171140_tdd_prompt_retryfix_v4_single_12907/predictions/tdd_prompt.jsonl",
+      "eval_file": "benchmark_runs/20260220_171140_tdd_prompt_retryfix_v4_single_12907/evaluations/tdd_prompt.eval.json",
+      "total_time_s": 218.10138988494873,
+      "generation_count": 1,
+      "empty_count": 0,
+      "resolved_count": 0,
+      "unresolved_count": 1,
+      "eval_ran": true,
+      "loop_abort_count": 0,
+      "avg_attempts_used": 2.0,
+      "avg_f2p_pass_rate": 0.0,
+      "avg_p2p_smoke_failures": 10.0,
+      "clean_resolution_count": 0,
+      "instances": [
+        {
+          "instance_id": "astropy__astropy-12907",
+          "patch_chars": 477,
+          "has_error": false,
+          "error_msg": "",
+          "elapsed_s": 218.10096716880798,
+          "resolved": null,
+          "attempts_used": 2,
+          "loop_abort_reason": "",
+          "f2p_pass_rate": 0.0,
+          "p2p_smoke_failures": 10,
+          "clean_resolution": null,
+          "patch_gate_valid": true,
+          "patch_gate_reason": "ok",
+          "patch_gate_severity": "info"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "variants": [
+    {
+      "name": "graphrag_tdd",
+      "backend": "qwen-mini",
+      "tdd_mode": true,
+      "use_graphrag": true,
+      "tdd_prompt_profile": false,
+      "graphrag_tdd_profile": true
+    }
+  ],
+  "limit": null,
+  "instance_ids": [
+    "django__django-10973"
+  ],
+  "skip_eval": false,
+  "max_workers": 1,
+  "run_name": "graphrag_tdd_vnext_smoke1_live",
+  "max_attempts": 3,
+  "step_limit": 40,
+  "loop_policy": "strict",
+  "max_fix_iterations": 1,
+  "patch_compile_gate": "on",
+  "test_signal_mode": "soft",
+  "retry_policy": "adaptive",
+  "enforce_tdd_test_first": "off",
+  "graph_guard_mode": "both",
+  "strict_tdd_evidence": "on",
+  "instance_timeout_sec": 1200,
+  "isolate_instances": "off",
+  "test_signal_mode_explicit": true,
+  "retry_policy_explicit": true,
+  "enforce_tdd_test_first_explicit": true,
+  "graph_guard_mode_explicit": true,
+  "strict_tdd_evidence_explicit": true,
+  "step_limit_explicit": true,
+  "max_fix_iterations_explicit": true
+}

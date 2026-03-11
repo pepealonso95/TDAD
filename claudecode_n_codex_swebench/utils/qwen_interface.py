@@ -1,5 +1,5 @@
 """
-Simple single-shot interface for Qwen using Ollama.
+Simple single-shot interface for Qwen using a local llama.cpp/OpenAI-compatible server.
 
 This follows the same pattern as claude_interface.py - a single call
 that gives the model all context and expects a complete solution.
@@ -14,24 +14,37 @@ from typing import Dict, List, Optional
 import requests
 from dotenv import load_dotenv
 
+from .local_model_backend import ensure_local_backend_ready, resolve_qwen_local_backend
+
 load_dotenv()
 
 
 class QwenCodeInterface:
-    """Simple interface for Qwen via Ollama - single-shot approach."""
+    """Simple interface for Qwen via local OpenAI-compatible API."""
 
     def __init__(self):
-        """Ensure Ollama is running."""
+        """Ensure the local qwen backend is reachable."""
+        self.local_backend = resolve_qwen_local_backend(
+            prefix="QWEN",
+            default_model="qwen3-coder:30b",
+        )
+        ensure_local_backend_ready(self.local_backend, prefix="QWEN")
+        self.local_llm_runtime = self.local_backend.provider_label
+        self.api_base = self.local_backend.api_base
+        self.api_key = self.local_backend.api_key
         try:
-            subprocess.run(
-                ["ollama", "list"],
-                capture_output=True, text=True, check=True, timeout=5
+            response = requests.get(
+                self.local_backend.healthcheck_url,
+                headers=self.local_backend.build_request_headers(),
+                timeout=5,
             )
-            print("✅ Ollama is ready")
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+            response.raise_for_status()
+            print(f"✅ {self.local_llm_runtime} server is ready ({self.local_backend.healthcheck_url})")
+        except Exception as exc:
             raise RuntimeError(
-                "Ollama is not running. Please start with: ollama serve"
-            )
+                f"Local {self.local_llm_runtime} server is not reachable at {self.api_base}. "
+                f"Start the configured local model server and expose the expected endpoint. ({exc})"
+            ) from exc
 
     def _gather_repo_context(self, cwd: str, max_files: int = 10) -> str:
         """Gather relevant files from the repo for context."""
@@ -201,7 +214,7 @@ class QwenCodeInterface:
         return applied, created_files
 
     def execute_code_cli(self, prompt: str, cwd: str, model: str = None, tdd_mode: bool = False) -> Dict[str, any]:
-        """Execute single-shot Qwen call via Ollama.
+        """Execute single-shot Qwen call via local OpenAI-compatible API.
 
         Args:
             prompt: The SWE-bench prompt with issue description
@@ -209,12 +222,13 @@ class QwenCodeInterface:
             model: Optional model override (default: qwen3-coder:30b)
             tdd_mode: If True, use TDD-focused prompt engineering
         """
-        model = model or "qwen3-coder:30b"
+        model = model or self.local_backend.model_name
 
         # Gather repo context
         print(f"\n{'='*60}")
-        print(f"DEBUG: Single-shot Qwen execution via Ollama")
+        print(f"DEBUG: Single-shot Qwen execution via {self.local_llm_runtime}")
         print(f"Model: {model}")
+        print(f"API Base: {self.api_base}")
         print(f"Working Directory: {cwd}")
         print(f"TDD Mode: {tdd_mode}")
         print(f"Prompt length: {len(prompt)} characters")
@@ -293,30 +307,55 @@ RULES:
 START YOUR RESPONSE WITH THE FILE MARKER. DO NOT EXPLAIN."""
 
         try:
-            # Single API call to Ollama
-            print("📡 Calling Ollama API (this may take a few minutes)...")
-
-            response = requests.post(
-                "http://localhost:11434/api/generate",
-                json={
-                    "model": model,
-                    "prompt": full_prompt,
-                    "stream": False,
-                    "options": {
-                        "num_ctx": 262144,  # 256K context
+            if self.local_backend.provider == "ollama":
+                print("📡 Calling Ollama generate API...")
+                response = requests.post(
+                    self.local_backend.ollama_generate_url,
+                    json={
+                        "model": model,
+                        "prompt": full_prompt,
+                        "stream": False,
+                        "options": {
+                            "num_ctx": 262144,
+                            "temperature": 0.1,
+                            "num_predict": 8192,
+                        },
+                    },
+                    timeout=600,
+                )
+                response.raise_for_status()
+                result = response.json()
+                model_response = result.get("response", "") or ""
+            else:
+                print(f"📡 Calling {self.local_llm_runtime} chat completions API...")
+                response = requests.post(
+                    self.local_backend.chat_completions_url,
+                    headers=self.local_backend.build_request_headers(),
+                    json={
+                        "model": model,
+                        "messages": [{"role": "user", "content": full_prompt}],
                         "temperature": 0.1,
-                        "num_predict": 8192,  # Allow long responses
-                    }
-                },
-                timeout=600  # 10 minute timeout
-            )
-            response.raise_for_status()
-
-            result = response.json()
-            model_response = result.get("response", "")
+                        "max_tokens": 8192,
+                        "stream": False,
+                    },
+                    timeout=600,
+                )
+                response.raise_for_status()
+                result = response.json()
+                choices = result.get("choices") or []
+                message = choices[0].get("message", {}) if choices else {}
+                content = message.get("content", "") or ""
+                if isinstance(content, list):
+                    model_response = "".join(
+                        str(part.get("text", ""))
+                        for part in content
+                        if isinstance(part, dict)
+                    )
+                else:
+                    model_response = str(content)
 
             print(f"\n{'='*60}")
-            print(f"DEBUG: Ollama Response")
+            print(f"DEBUG: {self.local_llm_runtime} Response")
             print(f"Response length: {len(model_response)} characters")
             print(f"Preview (first 500 chars):\n{model_response[:500]}")
             print(f"{'='*60}\n")
@@ -356,7 +395,7 @@ START YOUR RESPONSE WITH THE FILE MARKER. DO NOT EXPLAIN."""
             return {
                 "success": False,
                 "stdout": "",
-                "stderr": "Ollama API timed out after 10 minutes",
+                "stderr": f"{self.local_llm_runtime} API timed out after 10 minutes",
                 "returncode": -1,
             }
         except Exception as e:
