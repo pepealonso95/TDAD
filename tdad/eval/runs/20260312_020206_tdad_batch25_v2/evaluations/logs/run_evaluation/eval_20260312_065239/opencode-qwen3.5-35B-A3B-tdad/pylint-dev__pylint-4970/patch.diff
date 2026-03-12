@@ -1,0 +1,22 @@
+diff --git a/pylint/checkers/similar.py b/pylint/checkers/similar.py
+index c65b1c893..014437fa8 100644
+--- a/pylint/checkers/similar.py
++++ b/pylint/checkers/similar.py
+@@ -524,7 +524,7 @@ class Similar:
+                 lineset1, start_index_1, lineset2, start_index_2, nb_common_lines
+             )
+ 
+-            if eff_cmn_nb > self.min_lines:
++            if eff_cmn_nb >= self.min_lines and self.min_lines > 0:
+                 yield com
+ 
+     def _iter_sims(self) -> Generator[Commonality, None, None]:
+@@ -830,6 +830,8 @@ class SimilarChecker(BaseChecker, Similar, MapReduceMixin):
+ 
+     def close(self):
+         """compute and display similarities on closing (i.e. end of parsing)"""
++        if self.min_lines == 0:
++            return
+         total = sum(len(lineset) for lineset in self.linesets)
+         duplicated = 0
+         stats = self.stats

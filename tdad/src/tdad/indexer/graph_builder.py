@@ -1,9 +1,10 @@
 """Graph builder: walks a repo, parses Python files, persists to Neo4j."""
 
+import hashlib
 import logging
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Set, Tuple
 
 from ..core.graph_db import GraphDB
 from .ast_parser import FileInfo, parse_file
@@ -36,8 +37,105 @@ def _module_name(relative_path: str) -> str:
     return normalized.replace("/", ".").strip(".")
 
 
+def _hash_file(path: Path) -> str:
+    """Compute MD5 content hash without reading entire file into memory."""
+    h = hashlib.md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+# ------------------------------------------------------------------
+# Incremental diff
+# ------------------------------------------------------------------
+
+def _get_indexed_hashes(db: GraphDB) -> Dict[str, str]:
+    """Query Neo4j for all File nodes and their content_hash."""
+    with db.session() as session:
+        result = db.run_query(session, """
+            MATCH (f:File)
+            RETURN f.path AS path, f.content_hash AS hash
+        """)
+        return {r["path"]: r["hash"] for r in result}
+
+
+def _compute_diff(
+    python_files: List[Path],
+    repo_path: Path,
+    indexed: Dict[str, str],
+) -> Tuple[List[Path], List[Path], List[str]]:
+    """Compare on-disk files against indexed hashes.
+
+    Returns:
+        (new_or_changed, unchanged, deleted_paths)
+    """
+    new_or_changed: List[Path] = []
+    unchanged: List[Path] = []
+    current_rel_paths: Set[str] = set()
+
+    for p in python_files:
+        try:
+            rel = str(p.resolve().relative_to(repo_path.resolve()))
+        except ValueError:
+            rel = p.name
+        current_rel_paths.add(rel)
+
+        old_hash = indexed.get(rel)
+        if old_hash is None:
+            new_or_changed.append(p)
+        else:
+            current_hash = _hash_file(p)
+            if current_hash != old_hash:
+                new_or_changed.append(p)
+            else:
+                unchanged.append(p)
+
+    deleted = [path for path in indexed if path not in current_rel_paths]
+    return new_or_changed, unchanged, deleted
+
+
+def _delete_file_subgraph(db: GraphDB, deleted_paths: List[str]) -> int:
+    """Remove nodes and edges for deleted files."""
+    if not deleted_paths:
+        return 0
+    with db.session() as session:
+        # Delete all nodes that belong to these files, plus the file nodes themselves
+        result = db.run_query(session, """
+            UNWIND $paths AS p
+            MATCH (f:File {path: p})-[:CONTAINS]->(n)
+            DETACH DELETE n
+            WITH count(*) AS child_count
+            UNWIND $paths AS p
+            MATCH (f:File {path: p})
+            DETACH DELETE f
+            RETURN child_count
+        """, paths=deleted_paths)
+    logger.info("Deleted subgraphs for %d removed files", len(deleted_paths))
+    return len(deleted_paths)
+
+
+def _delete_stale_nodes(db: GraphDB, changed_rel_paths: List[str]) -> None:
+    """Remove old child nodes for files that will be re-indexed."""
+    if not changed_rel_paths:
+        return
+    with db.session() as session:
+        db.run_query(session, """
+            UNWIND $paths AS p
+            MATCH (f:File {path: p})-[:CONTAINS]->(n)
+            DETACH DELETE n
+        """, paths=changed_rel_paths)
+
+
+# ------------------------------------------------------------------
+# Public API
+# ------------------------------------------------------------------
+
 def build_graph(repo_path: Path, db: GraphDB, force: bool = False) -> Dict[str, Any]:
     """Index a repository into the Neo4j graph.
+
+    Incremental by default: only re-parses new/changed files and removes
+    deleted ones. Use force=True for a full rebuild.
 
     Returns statistics dict with node/edge counts.
     """
@@ -52,18 +150,59 @@ def build_graph(repo_path: Path, db: GraphDB, force: bool = False) -> Dict[str, 
 
     python_files = _collect_python_files(repo_path)
     if not python_files:
-        return {"files": 0, "functions": 0, "classes": 0, "tests": 0, "edges": 0}
+        return {"files": 0, "functions": 0, "classes": 0, "tests": 0, "edges": 0,
+                "incremental": False, "changed": 0, "unchanged": 0, "deleted": 0}
+
+    # Incremental diff (skip when force or empty graph)
+    if not force:
+        indexed = _get_indexed_hashes(db)
+    else:
+        indexed = {}
+
+    if indexed:
+        to_parse, unchanged, deleted = _compute_diff(python_files, repo_path, indexed)
+        _delete_file_subgraph(db, deleted)
+
+        if not to_parse and not deleted:
+            logger.info("Graph is up-to-date, nothing to index")
+            return {"files": len(unchanged), "functions": 0, "classes": 0, "tests": 0,
+                    "edges": 0, "incremental": True, "changed": 0,
+                    "unchanged": len(unchanged), "deleted": 0}
+
+        # Remove stale child nodes for changed files before re-inserting
+        changed_rel = []
+        for p in to_parse:
+            try:
+                changed_rel.append(str(p.resolve().relative_to(repo_path.resolve())))
+            except ValueError:
+                pass
+        _delete_stale_nodes(db, changed_rel)
+
+        logger.info(
+            "Incremental index: %d changed/new, %d unchanged, %d deleted",
+            len(to_parse), len(unchanged), len(deleted),
+        )
+    else:
+        to_parse = python_files
+        unchanged = []
+        deleted = []
 
     # Parse files (parallel when > 1 worker)
-    workers = min(db.settings.index_workers, len(python_files))
-    file_infos = _parse_files(python_files, repo_path, workers)
+    workers = min(db.settings.index_workers, len(to_parse))
+    file_infos = _parse_files(to_parse, repo_path, workers)
 
     # Persist nodes and edges
     stats = _persist_to_graph(file_infos, repo_path, db)
+    stats["incremental"] = bool(indexed)
+    stats["changed"] = len(to_parse)
+    stats["unchanged"] = len(unchanged)
+    stats["deleted"] = len(deleted)
+
     logger.info(
-        "Indexed %d files: %d functions, %d classes, %d tests, %d edges",
-        stats["files"], stats["functions"], stats["classes"],
-        stats["tests"], stats["edges"],
+        "Indexed %d files (%d changed, %d unchanged, %d deleted): "
+        "%d functions, %d classes, %d tests, %d edges",
+        stats["files"], stats["changed"], stats["unchanged"], stats["deleted"],
+        stats["functions"], stats["classes"], stats["tests"], stats["edges"],
     )
     return stats
 
@@ -185,81 +324,132 @@ def _persist_to_graph(file_infos: List[FileInfo], repo_path: Path, db: GraphDB) 
             imports_data.append({"importer": fi.relative_path, "imported_module": imp})
 
     # -- Write to Neo4j with UNWIND batches --
-    with db.session() as session:
-        # Nodes
-        if files_data:
-            db.run_query(session, """
-                UNWIND $rows AS r
-                MERGE (f:File {path: r.path})
-                SET f.name = r.name, f.content_hash = r.content_hash,
-                    f.repo_path = r.repo_path, f.updated_at = datetime()
-            """, rows=files_data)
+    BATCH = 500  # rows per transaction to avoid timeouts on large repos
 
-        if functions_data:
-            db.run_query(session, """
-                UNWIND $rows AS r
-                MERGE (fn:Function {id: r.id})
-                SET fn.name = r.name, fn.file_path = r.file_path,
-                    fn.start_line = r.start_line, fn.end_line = r.end_line,
-                    fn.signature = r.signature, fn.docstring = r.docstring,
-                    fn.qualified_name = r.qualified_name, fn.updated_at = datetime()
-            """, rows=functions_data)
+    def _batched_write(db, query, rows, label=""):
+        for i in range(0, len(rows), BATCH):
+            chunk = rows[i:i + BATCH]
+            with db.session() as session:
+                # Use raw query (no client timeout) for indexing batches
+                session.run(query, rows=chunk).consume()
+            if label:
+                logger.debug("Wrote %s batch %d-%d / %d", label, i, i + len(chunk), len(rows))
 
-        if classes_data:
-            db.run_query(session, """
-                UNWIND $rows AS r
-                MERGE (c:Class {id: r.id})
-                SET c.name = r.name, c.file_path = r.file_path,
-                    c.start_line = r.start_line, c.end_line = r.end_line,
-                    c.docstring = r.docstring, c.qualified_name = r.qualified_name,
-                    c.updated_at = datetime()
-            """, rows=classes_data)
+    # Nodes
+    if files_data:
+        _batched_write(db, """
+            UNWIND $rows AS r
+            MERGE (f:File {path: r.path})
+            SET f.name = r.name, f.content_hash = r.content_hash,
+                f.repo_path = r.repo_path, f.updated_at = datetime()
+        """, files_data, "files")
 
-        if tests_data:
-            db.run_query(session, """
-                UNWIND $rows AS r
-                MERGE (t:Test {id: r.id})
-                SET t.name = r.name, t.file_path = r.file_path, t.updated_at = datetime()
-            """, rows=tests_data)
+    if functions_data:
+        _batched_write(db, """
+            UNWIND $rows AS r
+            MERGE (fn:Function {id: r.id})
+            SET fn.name = r.name, fn.file_path = r.file_path,
+                fn.start_line = r.start_line, fn.end_line = r.end_line,
+                fn.signature = r.signature, fn.docstring = r.docstring,
+                fn.qualified_name = r.qualified_name, fn.updated_at = datetime()
+        """, functions_data, "functions")
 
-        # Edges: CONTAINS
-        if contains_data:
-            db.run_query(session, """
-                UNWIND $rows AS r
-                MATCH (f:File {path: r.file_path})
-                MATCH (n {id: r.node_id})
-                MERGE (f)-[:CONTAINS]->(n)
-            """, rows=contains_data)
+    if classes_data:
+        _batched_write(db, """
+            UNWIND $rows AS r
+            MERGE (c:Class {id: r.id})
+            SET c.name = r.name, c.file_path = r.file_path,
+                c.start_line = r.start_line, c.end_line = r.end_line,
+                c.docstring = r.docstring, c.qualified_name = r.qualified_name,
+                c.updated_at = datetime()
+        """, classes_data, "classes")
 
-        # Edges: CALLS (resolve callee by name)
-        if calls_data:
-            db.run_query(session, """
-                UNWIND $rows AS r
-                MATCH (caller:Function {id: r.caller_id})
-                MATCH (callee:Function)
-                WHERE callee.name = r.callee_name OR callee.qualified_name ENDS WITH ('.' + r.callee_name)
-                MERGE (caller)-[:CALLS]->(callee)
-            """, rows=calls_data)
+    if tests_data:
+        _batched_write(db, """
+            UNWIND $rows AS r
+            MERGE (t:Test {id: r.id})
+            SET t.name = r.name, t.file_path = r.file_path, t.updated_at = datetime()
+        """, tests_data, "tests")
 
-        # Edges: IMPORTS (file → file via module name)
-        if imports_data:
-            db.run_query(session, """
+    # Edges: CONTAINS
+    if contains_data:
+        _batched_write(db, """
+            UNWIND $rows AS r
+            MATCH (f:File {path: r.file_path})
+            MATCH (n {id: r.node_id})
+            MERGE (f)-[:CONTAINS]->(n)
+        """, contains_data, "contains")
+
+    # Edges: CALLS — pre-resolve in Python to avoid expensive cartesian in Neo4j
+    MAX_CALLEE_MATCHES = 10  # skip overly-generic names like __init__, get, etc.
+    if calls_data:
+        # Build lookup: function name -> list of (function_id, file_path)
+        from collections import defaultdict
+        name_to_ids = defaultdict(list)
+        for fd in functions_data:
+            name_to_ids[fd["name"]].append((fd["id"], fd["file_path"]))
+            qn = fd.get("qualified_name", "")
+            if "." in qn:
+                short = qn.rsplit(".", 1)[-1]
+                if short != fd["name"]:
+                    name_to_ids[short].append((fd["id"], fd["file_path"]))
+
+        resolved_calls = []
+        for cd in calls_data:
+            candidates = name_to_ids.get(cd["callee_name"], [])
+            if len(candidates) > MAX_CALLEE_MATCHES:
+                # Too ambiguous — prefer same-file matches only
+                caller_file = cd["caller_id"].split("::")[0]
+                candidates = [(cid, fp) for cid, fp in candidates if fp == caller_file]
+            for cid, _ in candidates:
+                resolved_calls.append({"caller_id": cd["caller_id"], "callee_id": cid})
+
+        logger.info("Resolved %d call edges from %d raw calls", len(resolved_calls), len(calls_data))
+        CALLS_BATCH = 200
+        for i in range(0, len(resolved_calls), CALLS_BATCH):
+            chunk = resolved_calls[i:i + CALLS_BATCH]
+            with db.session() as session:
+                session.run("""
+                    UNWIND $rows AS r
+                    MATCH (caller:Function {id: r.caller_id})
+                    MATCH (callee:Function {id: r.callee_id})
+                    MERGE (caller)-[:CALLS]->(callee)
+                """, rows=chunk).consume()
+            logger.debug("Wrote calls batch %d-%d / %d", i, i + len(chunk), len(resolved_calls))
+
+    # Edges: IMPORTS — pre-resolve in Python to avoid ENDS WITH scan
+    if imports_data:
+        # Build lookup: module suffix -> file path
+        file_module_map = {}
+        for fd in files_data:
+            mod = fd["path"].replace("/", ".").replace(".py", "").strip(".")
+            file_module_map[mod] = fd["path"]
+
+        resolved_imports = []
+        for imp in imports_data:
+            target_module = imp["imported_module"]
+            for mod, fpath in file_module_map.items():
+                if mod == target_module or mod.endswith("." + target_module):
+                    resolved_imports.append({"importer": imp["importer"], "imported": fpath})
+
+        logger.info("Resolved %d import edges from %d raw imports", len(resolved_imports), len(imports_data))
+        if resolved_imports:
+            _batched_write(db, """
                 UNWIND $rows AS r
                 MATCH (importer:File {path: r.importer})
-                MATCH (imported:File)
-                WHERE replace(replace(imported.path, '/', '.'), '.py', '') ENDS WITH r.imported_module
+                MATCH (imported:File {path: r.imported})
                 MERGE (importer)-[:IMPORTS]->(imported)
-            """, rows=imports_data)
+            """, resolved_imports, "imports")
 
-        # Edges: INHERITS (class → class by name)
-        if inherits_data:
-            db.run_query(session, """
-                UNWIND $rows AS r
-                MATCH (child:Class {id: r.class_id})
-                MATCH (parent:Class)
-                WHERE parent.name = r.base_name
-                MERGE (child)-[:INHERITS]->(parent)
-            """, rows=inherits_data)
+    # Edges: INHERITS (class → class by name)
+    if inherits_data:
+        _batched_write(db, """
+            UNWIND $rows AS r
+            MATCH (child:Class {id: r.class_id})
+            MATCH (parent:Class)
+            WHERE parent.name = r.base_name
+            MERGE (child)-[:INHERITS]->(parent)
+        """, inherits_data, "inherits")
 
     edges = len(contains_data) + len(calls_data) + len(imports_data) + len(inherits_data)
     return {

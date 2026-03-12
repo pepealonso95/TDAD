@@ -1,0 +1,39 @@
+{
+  "baseline": {
+    "total_instances": 5,
+    "patches_generated": 0,
+    "generation_rate": 0.0
+  },
+  "per_instance": [
+    {
+      "instance_id": "mwaskom__seaborn-3069",
+      "repo": "mwaskom/seaborn",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "pallets__flask-5014",
+      "repo": "pallets/flask",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "psf__requests-1142",
+      "repo": "psf/requests",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "pylint-dev__pylint-4551",
+      "repo": "pylint-dev/pylint",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "pytest-dev__pytest-10051",
+      "repo": "pytest-dev/pytest",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    }
+  ]
+}

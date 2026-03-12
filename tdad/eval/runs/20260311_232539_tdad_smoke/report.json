@@ -1,0 +1,15 @@
+{
+  "tdad": {
+    "total_instances": 1,
+    "patches_generated": 1,
+    "generation_rate": 100.0
+  },
+  "per_instance": [
+    {
+      "instance_id": "psf__requests-1142",
+      "repo": "psf/requests",
+      "tdad_patch": true,
+      "tdad_resolved": false
+    }
+  ]
+}

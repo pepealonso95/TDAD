@@ -1,0 +1,21 @@
+{
+  "mode": "baseline",
+  "modes": [
+    "baseline"
+  ],
+  "model": "/Users/rafaelalonso/.lmstudio/models/mlx-community/Qwen3.5-35B-A3B-4bit",
+  "model_server": "http://127.0.0.1:7778/v1",
+  "limit": null,
+  "instance_ids": [
+    "psf__requests-1142",
+    "pallets__flask-5014",
+    "pytest-dev__pytest-10051",
+    "pylint-dev__pylint-4551",
+    "mwaskom__seaborn-3069"
+  ],
+  "timeout": 600,
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "run_name": "20260310_221941",
+  "instance_count": 5,
+  "skip_eval": true
+}

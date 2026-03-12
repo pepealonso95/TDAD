@@ -67,6 +67,10 @@ def _cmd_index(args):
     with GraphDB(settings) as db:
         print(f"Indexing {args.repo_path} ...")
         stats = build_graph(args.repo_path, db, force=args.force)
+        if stats.get("incremental"):
+            print(f"  Changed:   {stats.get('changed', 0)}")
+            print(f"  Unchanged: {stats.get('unchanged', 0)}")
+            print(f"  Deleted:   {stats.get('deleted', 0)}")
         print(f"  Files:     {stats['files']}")
         print(f"  Functions: {stats['functions']}")
         print(f"  Classes:   {stats['classes']}")

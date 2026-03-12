@@ -1,0 +1,159 @@
+{
+  "tdad": {
+    "total_instances": 25,
+    "patches_generated": 7,
+    "generation_rate": 28.0
+  },
+  "per_instance": [
+    {
+      "instance_id": "django__django-10097",
+      "repo": "django/django",
+      "tdad_patch": true,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "django__django-10554",
+      "repo": "django/django",
+      "tdad_patch": false,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "django__django-10880",
+      "repo": "django/django",
+      "tdad_patch": false,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "django__django-10914",
+      "repo": "django/django",
+      "tdad_patch": true,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "django__django-10973",
+      "repo": "django/django",
+      "tdad_patch": true,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "mwaskom__seaborn-3069",
+      "repo": "mwaskom/seaborn",
+      "tdad_patch": false,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "mwaskom__seaborn-3187",
+      "repo": "mwaskom/seaborn",
+      "tdad_patch": false,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "pallets__flask-5014",
+      "repo": "pallets/flask",
+      "tdad_patch": false,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "psf__requests-1142",
+      "repo": "psf/requests",
+      "tdad_patch": false,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "psf__requests-1724",
+      "repo": "psf/requests",
+      "tdad_patch": false,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "psf__requests-1766",
+      "repo": "psf/requests",
+      "tdad_patch": true,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "psf__requests-1921",
+      "repo": "psf/requests",
+      "tdad_patch": false,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "psf__requests-2317",
+      "repo": "psf/requests",
+      "tdad_patch": true,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "pydata__xarray-2905",
+      "repo": "pydata/xarray",
+      "tdad_patch": false,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "pydata__xarray-3095",
+      "repo": "pydata/xarray",
+      "tdad_patch": false,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "pydata__xarray-3151",
+      "repo": "pydata/xarray",
+      "tdad_patch": false,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "pylint-dev__pylint-4551",
+      "repo": "pylint-dev/pylint",
+      "tdad_patch": false,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "pylint-dev__pylint-4604",
+      "repo": "pylint-dev/pylint",
+      "tdad_patch": false,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "pylint-dev__pylint-4661",
+      "repo": "pylint-dev/pylint",
+      "tdad_patch": false,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "pylint-dev__pylint-4970",
+      "repo": "pylint-dev/pylint",
+      "tdad_patch": true,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "pytest-dev__pytest-10051",
+      "repo": "pytest-dev/pytest",
+      "tdad_patch": false,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "pytest-dev__pytest-10081",
+      "repo": "pytest-dev/pytest",
+      "tdad_patch": false,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "pytest-dev__pytest-10356",
+      "repo": "pytest-dev/pytest",
+      "tdad_patch": false,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "pytest-dev__pytest-5262",
+      "repo": "pytest-dev/pytest",
+      "tdad_patch": true,
+      "tdad_resolved": false
+    },
+    {
+      "instance_id": "pytest-dev__pytest-5631",
+      "repo": "pytest-dev/pytest",
+      "tdad_patch": false,
+      "tdad_resolved": false
+    }
+  ]
+}

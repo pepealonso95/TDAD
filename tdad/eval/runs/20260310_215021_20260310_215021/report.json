@@ -1,0 +1,15 @@
+{
+  "baseline": {
+    "total_instances": 1,
+    "patches_generated": 0,
+    "generation_rate": 0.0
+  },
+  "per_instance": [
+    {
+      "instance_id": "astropy__astropy-12907",
+      "repo": "astropy/astropy",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    }
+  ]
+}

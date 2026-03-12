@@ -1,0 +1,21 @@
+{
+  "baseline": {
+    "total_instances": 2,
+    "patches_generated": 1,
+    "generation_rate": 50.0
+  },
+  "per_instance": [
+    {
+      "instance_id": "pallets__flask-5014",
+      "repo": "pallets/flask",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "psf__requests-1142",
+      "repo": "psf/requests",
+      "baseline_patch": true,
+      "baseline_resolved": false
+    }
+  ]
+}

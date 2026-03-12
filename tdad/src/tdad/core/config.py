@@ -20,7 +20,7 @@ class TDADSettings(BaseSettings):
 
     # Performance
     index_workers: int = 4
-    query_timeout: float = 20.0
+    query_timeout: float = 120.0
 
 
 def get_settings() -> TDADSettings:

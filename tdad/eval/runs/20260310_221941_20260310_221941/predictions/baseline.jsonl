@@ -1,0 +1,5 @@
+{"instance_id": "mwaskom__seaborn-3069", "model_name_or_path": "opencode-qwen3.5-35B-A3B-baseline", "model_patch": ""}
+{"instance_id": "pallets__flask-5014", "model_name_or_path": "opencode-qwen3.5-35B-A3B-baseline", "model_patch": ""}
+{"instance_id": "psf__requests-1142", "model_name_or_path": "opencode-qwen3.5-35B-A3B-baseline", "model_patch": ""}
+{"instance_id": "pylint-dev__pylint-4551", "model_name_or_path": "opencode-qwen3.5-35B-A3B-baseline", "model_patch": ""}
+{"instance_id": "pytest-dev__pytest-10051", "model_name_or_path": "opencode-qwen3.5-35B-A3B-baseline", "model_patch": ""}

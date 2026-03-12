@@ -1,0 +1,170 @@
+{
+  "baseline": {
+    "total_instances": 25,
+    "patches_generated": 10,
+    "generation_rate": 40.0,
+    "resolved_count": 6,
+    "resolution_rate": 24.0,
+    "eval_time": 3319.5351910591125,
+    "resolved_ids": [
+      "django__django-10914",
+      "django__django-10973",
+      "pallets__flask-5014",
+      "psf__requests-1142",
+      "pydata__xarray-3151",
+      "pytest-dev__pytest-5262"
+    ]
+  },
+  "per_instance": [
+    {
+      "instance_id": "django__django-10097",
+      "repo": "django/django",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "django__django-10554",
+      "repo": "django/django",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "django__django-10880",
+      "repo": "django/django",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "django__django-10914",
+      "repo": "django/django",
+      "baseline_patch": true,
+      "baseline_resolved": true
+    },
+    {
+      "instance_id": "django__django-10973",
+      "repo": "django/django",
+      "baseline_patch": true,
+      "baseline_resolved": true
+    },
+    {
+      "instance_id": "mwaskom__seaborn-3069",
+      "repo": "mwaskom/seaborn",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "mwaskom__seaborn-3187",
+      "repo": "mwaskom/seaborn",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "pallets__flask-5014",
+      "repo": "pallets/flask",
+      "baseline_patch": true,
+      "baseline_resolved": true
+    },
+    {
+      "instance_id": "psf__requests-1142",
+      "repo": "psf/requests",
+      "baseline_patch": true,
+      "baseline_resolved": true
+    },
+    {
+      "instance_id": "psf__requests-1724",
+      "repo": "psf/requests",
+      "baseline_patch": true,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "psf__requests-1766",
+      "repo": "psf/requests",
+      "baseline_patch": true,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "psf__requests-1921",
+      "repo": "psf/requests",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "psf__requests-2317",
+      "repo": "psf/requests",
+      "baseline_patch": true,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "pydata__xarray-2905",
+      "repo": "pydata/xarray",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "pydata__xarray-3095",
+      "repo": "pydata/xarray",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "pydata__xarray-3151",
+      "repo": "pydata/xarray",
+      "baseline_patch": true,
+      "baseline_resolved": true
+    },
+    {
+      "instance_id": "pylint-dev__pylint-4551",
+      "repo": "pylint-dev/pylint",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "pylint-dev__pylint-4604",
+      "repo": "pylint-dev/pylint",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "pylint-dev__pylint-4661",
+      "repo": "pylint-dev/pylint",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "pylint-dev__pylint-4970",
+      "repo": "pylint-dev/pylint",
+      "baseline_patch": true,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "pytest-dev__pytest-10051",
+      "repo": "pytest-dev/pytest",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "pytest-dev__pytest-10081",
+      "repo": "pytest-dev/pytest",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "pytest-dev__pytest-10356",
+      "repo": "pytest-dev/pytest",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    },
+    {
+      "instance_id": "pytest-dev__pytest-5262",
+      "repo": "pytest-dev/pytest",
+      "baseline_patch": true,
+      "baseline_resolved": true
+    },
+    {
+      "instance_id": "pytest-dev__pytest-5631",
+      "repo": "pytest-dev/pytest",
+      "baseline_patch": false,
+      "baseline_resolved": false
+    }
+  ]
+}

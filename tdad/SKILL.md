@@ -2,7 +2,7 @@
 name: tdad
 description: Test-Driven AI Development — prevent code regressions with GraphRAG test impact analysis
 version: 0.1.0
-author: Rafael Alonso
+author: Pepe Alonso
 tags: [tdd, testing, graphrag, regression-prevention, neo4j]
 tools: [bash]
 ---
@@ -22,47 +22,51 @@ docker compose -f /path/to/tdad/docker-compose.yml up -d
 
 ## TDD Workflow for AI Coding Agents
 
-When fixing a bug or adding a feature, follow this 8-phase workflow.
+When fixing a bug or adding a feature, follow this 9-phase workflow.
 Use it as advisory guidance — adapt to the situation.
 
-### Phase 1: Understand the Issue
-Read the issue/task description. Identify what's broken or needed.
-Note specific examples, test cases, or error messages mentioned.
+### Phase 1: Understand the Request
+Read the user's request. Identify what needs to change and what must stay the same.
 
-### Phase 2: Index the Repository
+### Phase 2: Ensure Graph is Current
 ```bash
-tdad index /path/to/repo
+tdad stats /path/to/repo   # check if indexed
+tdad index /path/to/repo   # first time or if repo changed since last index
 ```
-Builds the code-test dependency graph in Neo4j. Only needed once per
-repo (or after major structural changes). Use `--force` to rebuild.
+If `stats` shows zero nodes, index first. If the repo has changed
+significantly since the last index, re-index with `--force`.
 
 ### Phase 3: Explore the Codebase
 Search for relevant files, read source code, locate existing tests.
 Understand the testing patterns and conventions used in the project.
 
-### Phase 4: Identify Impacted Tests
+### Phase 4: Plan the Change
+Based on your exploration, identify which files and/or functions you'll modify and why.
+This gives you the file list needed for impact analysis in the next phase.
+
+### Phase 5: Identify Impacted Tests
 ```bash
 tdad impact /path/to/repo --files src/module.py src/utils.py
 ```
 Returns a ranked list of tests most likely affected by changes to those
-files. Use `--strategy conservative` for safety-critical changes.
+files and functions. Use `--strategy conservative` for safety-critical changes.
 
-### Phase 5: Establish Baseline
+### Phase 6: Establish Baseline
 Run the impacted tests BEFORE making any changes:
 ```bash
 tdad run-tests /path/to/repo --tests tests/test_module.py tests/test_utils.py
 ```
 Record which tests pass. These MUST NOT break after your changes.
 
-### Phase 6: Write Tests First (Red Phase)
+### Phase 7: Write Tests First (Red Phase)
 Write or modify tests that verify the fix before touching implementation.
-Run the new tests to confirm they FAIL — this proves they test the right thing.
+Run the new tests to confirm they FAIL — this proves they test the right thing. These tests should be aligned with the user's request.
 
-### Phase 7: Implement the Fix (Green Phase)
-Make minimal, targeted changes to make your new tests pass.
+### Phase 8: Implement (Green Phase)
+Make all necessary changes to implement the users request and make sure your new tests pass.
 Preserve existing functionality. Follow the repo's coding style.
 
-### Phase 8: Regression Check
+### Phase 9: Regression Check
 Run ALL impacted tests again:
 ```bash
 tdad run-tests /path/to/repo --tests tests/test_module.py tests/test_utils.py
@@ -95,11 +99,10 @@ After your fix, if regression tests fail, address them with a minimal follow-up 
 ## Quality Checklist
 
 Before completing a task:
-- [ ] New tests written that validate the fix
+- [ ] New tests written that validate the fix or new functionality
 - [ ] New tests initially failed (proving they test the issue)
-- [ ] New tests now pass (proving the fix works)
+- [ ] New tests now pass (proving the fix or new functionality works)
 - [ ] All previously-passing impacted tests still pass
-- [ ] No unrelated files modified
 
 ## Anti-Patterns to Avoid
 
@@ -108,4 +111,3 @@ Before completing a task:
 - Ignoring test failures in existing tests
 - Making large changes without incremental testing
 - Assuming tests pass without running them
-- Over-engineering: fix only what's asked

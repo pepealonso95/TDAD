@@ -1,0 +1,15 @@
+{
+  "mode": "baseline",
+  "modes": [
+    "baseline"
+  ],
+  "model": "qwen3.5-35b-a3b",
+  "model_server": "http://127.0.0.1:1234/v1",
+  "limit": 1,
+  "instance_ids": null,
+  "timeout": 600,
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "run_name": "20260310_194654",
+  "instance_count": 1,
+  "skip_eval": true
+}
