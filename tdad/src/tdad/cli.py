@@ -58,42 +58,59 @@ def main(argv=None):
 
 
 def _cmd_index(args):
-    from .core.config import get_settings
-    from .core.graph_db import GraphDB
+    from .core.config import get_settings, get_db
     from .indexer.graph_builder import build_graph
     from .indexer.test_linker import link_tests
+    from .analyzer.impact import export_test_map, export_test_map_heuristic
 
     settings = get_settings()
-    with GraphDB(settings) as db:
-        print(f"Indexing {args.repo_path} ...")
-        stats = build_graph(args.repo_path, db, force=args.force)
-        if stats.get("incremental"):
-            print(f"  Changed:   {stats.get('changed', 0)}")
-            print(f"  Unchanged: {stats.get('unchanged', 0)}")
-            print(f"  Deleted:   {stats.get('deleted', 0)}")
-        print(f"  Files:     {stats['files']}")
-        print(f"  Functions: {stats['functions']}")
-        print(f"  Classes:   {stats['classes']}")
-        print(f"  Tests:     {stats['tests']}")
-        print(f"  Edges:     {stats['edges']}")
 
-        print("Linking tests ...")
-        link_stats = link_tests(args.repo_path, db)
-        print(f"  Naming:  {link_stats['naming']}")
-        print(f"  Static:  {link_stats['static']}")
-        print(f"  Coverage: {link_stats['coverage']}")
-        print(f"  Total:   {link_stats['total']}")
+    try:
+        with get_db(settings, repo_path=args.repo_path) as db:
+            print(f"Indexing {args.repo_path} (backend={settings.backend}) ...")
+            stats = build_graph(args.repo_path, db, force=args.force)
+            if stats.get("incremental"):
+                print(f"  Changed:   {stats.get('changed', 0)}")
+                print(f"  Unchanged: {stats.get('unchanged', 0)}")
+                print(f"  Deleted:   {stats.get('deleted', 0)}")
+            print(f"  Files:     {stats['files']}")
+            print(f"  Functions: {stats['functions']}")
+            print(f"  Classes:   {stats['classes']}")
+            print(f"  Tests:     {stats['tests']}")
+            print(f"  Edges:     {stats['edges']}")
+
+            print("Linking tests ...")
+            link_stats = link_tests(args.repo_path, db)
+            print(f"  Naming:  {link_stats['naming']}")
+            print(f"  Static:  {link_stats['static']}")
+            print(f"  Coverage: {link_stats['coverage']}")
+            print(f"  Total:   {link_stats['total']}")
+
+            # Export static test map for agent use (graph + heuristic)
+            try:
+                map_count = export_test_map(db, args.repo_path)
+                print(f"  Test map: {map_count} source files exported")
+            except Exception as exc:
+                print(f"  Test map: graph export failed ({exc})")
+                map_count = export_test_map_heuristic(args.repo_path)
+                print(f"  Test map: {map_count} source files (heuristic)")
+
+    except Exception as exc:
+        # Neo4j unavailable or indexing failed — fall back to heuristic test map
+        print(f"Graph indexing unavailable: {exc}", file=sys.stderr)
+        print("Generating heuristic test map ...")
+        map_count = export_test_map_heuristic(args.repo_path)
+        print(f"  Test map: {map_count} source files (heuristic)")
 
     return 0
 
 
 def _cmd_impact(args):
-    from .core.config import get_settings
-    from .core.graph_db import GraphDB
+    from .core.config import get_settings, get_db
     from .analyzer.impact import get_impacted_tests
 
     settings = get_settings()
-    with GraphDB(settings) as db:
+    with get_db(settings, repo_path=args.repo_path) as db:
         tests = get_impacted_tests(
             args.repo_path, db, args.files,
             strategy=args.strategy, max_tests=args.max_tests,
@@ -127,23 +144,28 @@ def _cmd_run_tests(args):
 
 
 def _cmd_stats(args):
-    from .core.config import get_settings
-    from .core.graph_db import GraphDB
+    from .core.config import get_settings, get_db
 
     settings = get_settings()
-    with GraphDB(settings) as db:
-        with db.session() as session:
+    with get_db(settings, repo_path=args.repo_path) as db:
+        if hasattr(db, "count_by_label"):
+            # NetworkX backend
             counts = {}
             for label in ["File", "Function", "Class", "Test"]:
-                result = db.run_query(session, f"MATCH (n:{label}) RETURN count(n) AS cnt")
-                counts[label] = result.single()["cnt"]
-
-            result = db.run_query(session, "MATCH ()-[r]->() RETURN count(r) AS cnt")
-            counts["Edges"] = result.single()["cnt"]
-
-            # TESTS edges specifically
-            result = db.run_query(session, "MATCH ()-[r:TESTS]->() RETURN count(r) AS cnt")
-            counts["TESTS edges"] = result.single()["cnt"]
+                counts[label] = db.count_by_label(label)
+            counts["Edges"] = db.count_edges()
+            counts["TESTS edges"] = db.count_edges("TESTS")
+        else:
+            # Neo4j backend
+            with db.session() as session:
+                counts = {}
+                for label in ["File", "Function", "Class", "Test"]:
+                    result = db.run_query(session, f"MATCH (n:{label}) RETURN count(n) AS cnt")
+                    counts[label] = result.single()["cnt"]
+                result = db.run_query(session, "MATCH ()-[r]->() RETURN count(r) AS cnt")
+                counts["Edges"] = result.single()["cnt"]
+                result = db.run_query(session, "MATCH ()-[r:TESTS]->() RETURN count(r) AS cnt")
+                counts["TESTS edges"] = result.single()["cnt"]
 
     print("## Graph Statistics\n")
     for label, count in counts.items():
