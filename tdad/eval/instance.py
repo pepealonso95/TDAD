@@ -62,8 +62,7 @@ def process_instance(
 
         # 3. TDAD-specific setup
         if mode == "tdad":
-            logger.info("[%s] Running TDAD setup (clear + index + skill)", instance_id)
-            neo4j_lifecycle.clear()
+            logger.info("[%s] Running TDAD setup (index + skill)", instance_id)
             _run_tdad_index(work_dir)
             _install_skill(work_dir)
 

@@ -76,6 +76,24 @@ claudecode_n_codex_swebench/results/
 # OS
 Thumbs.db
 
+# Nested repos (separate git remotes)
+tdad-skill/
+
+# AI agent working directories
+.agent/
+.agents/
+.qwen/
+.claude/skills/
+skills-lock.json
+claudesession.md
+
+# LaTeX auxiliary files
+*.aux
+*.fdb_latexmk
+*.fls
+*.out
+*.synctex.gz
+
 # Sensitive
 .env
 .env.local

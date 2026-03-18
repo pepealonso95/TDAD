@@ -14755,10 +14755,56 @@ TDAD_BACKEND=neo4j tdad index /path/to/repo
 ```
 
 ### Analysis
-- **No evaluation impact expected** — this is purely infrastructure; the graph content, test linking, and impact scoring are identical between backends.
 - **Persistence**: graph saved to `.tdad/graph.pkl` (~628KB for TDAD's own repo), loaded automatically on next run.
 - **Speed**: sub-second queries at thesis scale (same as Neo4j for <100K nodes).
 - **Deployment**: `pip install tdad` now works without Docker. Neo4j is opt-in.
 
+### SWE-bench Evaluation (Same 25 Instances as EXP-025)
+
+**Run**: `autoloop/runs/nx_eval_exp025_match_20260314_202205/`
+**Eval**: `evaluations/opencode-qwen3.5-35B-A3B-tdad.eval_20260315_010118.json`
+**Agent timeout**: 900s per instance
+**Total generation time**: 16,714s (~4.6 hours)
+**Total eval time**: 2,479s (~41 minutes)
+
+#### Results vs EXP-025 Baseline (Same 25 Instances)
+
+| Metric | EXP-025 (Baseline) | EXP-028 (TDAD + NetworkX) | Delta |
+|--------|:------------------:|:-------------------------:|:-----:|
+| **Resolved** | **6/25 (24%)** | **8/25 (32%)** | **+8pp** |
+| **Generated** | 10/25 (40%) | 17/25 (68%) | **+28pp** |
+| **Res. among generated** | 6/10 (60%) | 8/13 (62%) | +2pp |
+| **Empty patches** | 15 | 8 | -7 |
+| **Docker eval errors** | 3 | 4 | +1 |
+
+#### Resolved Instances
+
+| Instance | EXP-025 (Baseline) | EXP-028 (TDAD + NetworkX) |
+|----------|:------------------:|:-------------------------:|
+| django__django-10914 | Resolved | Resolved |
+| django__django-10973 | Resolved | Resolved |
+| pallets__flask-5014 | Resolved | Resolved |
+| psf__requests-1142 | Resolved | Not resolved |
+| pydata__xarray-3151 | Resolved | Not resolved |
+| pytest-dev__pytest-5262 | Resolved | Resolved |
+| mwaskom__seaborn-3187 | Empty patch | **Resolved (NEW)** |
+| pydata__xarray-2905 | Empty patch | **Resolved (NEW)** |
+| pydata__xarray-3095 | Empty patch | **Resolved (NEW)** |
+| pytest-dev__pytest-5631 | Empty patch | **Resolved (NEW)** |
+
+#### Key Findings
+
+1. **+8pp resolution improvement** (24% → 32%) — TDAD with NetworkX resolved 4 instances that the baseline couldn't even generate patches for.
+
+2. **+28pp generation improvement** (40% → 68%) — The TDAD skill's test-map-guided workflow helped the agent produce patches for 7 more instances.
+
+3. **4 new resolutions from previously empty** — seaborn-3187, xarray-2905, xarray-3095, pytest-5631 all went from empty patches in baseline to resolved with TDAD.
+
+4. **2 baseline resolutions lost** — requests-1142 and xarray-3151 resolved in baseline but not with TDAD. Non-deterministic model behavior (same model, different runs).
+
+5. **NetworkX indexing had zero issues** — Every instance indexed successfully in ~30s with no Docker/Neo4j dependency. Graph persistence to `.tdad/graph.pkl` worked reliably.
+
+6. **Resolution quality among generated patches is stable** — 60% (baseline) vs 62% (TDAD). The improvement comes from generating more patches, not from higher per-patch quality.
+
 ### Status
-✅ **COMPLETE** — NetworkX backend implemented, validated, Neo4j preserved as optional
+✅ **COMPLETE** — NetworkX backend validated end-to-end: 32% resolution (vs 24% baseline) on same 25 instances

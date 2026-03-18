@@ -163,11 +163,35 @@ Evaluated on SWE-bench Verified (100 instances) using Qwen3-Coder 30B
 - **Generation Rate** — % of instances where the agent produced a non-empty
   patch.
 
-## For AI Agents
+## Install as an AI Agent Skill
 
-See [SKILL.md](SKILL.md) for the agent-facing skill definition. The
-recommended integration is a static test map file (`.tdad/test_map.txt`)
-that the agent can grep to find related tests for any changed file.
+TDAD ships as an [Agent Skill](https://agentskills.io) that teaches coding
+agents to check impacted tests before submitting patches.
+
+### Claude Code
+
+```bash
+# Via skills.sh
+npx skills add pepealonso95/tdad-skill
+
+# Or manually: copy into your project
+mkdir -p .claude/skills/tdad
+cp SKILL.md .claude/skills/tdad/SKILL.md
+```
+
+### Other agents
+
+Any agent that supports the [Agent Skills spec](https://agentskills.io/specification)
+can use the `SKILL.md` file directly. Copy it into the agent's skills directory.
+
+### How the skill works
+
+The skill instructs the agent to:
+1. Look up impacted tests in `.tdad/test_map.txt` after every code change
+2. Run only the impacted tests (not the full suite)
+3. Fix any regressions before submitting the patch
+
+See [SKILL.md](SKILL.md) for the full agent-facing instructions.
 
 ## Development
 
